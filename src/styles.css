@@ -1,0 +1,184 @@
+/* src/styles.css */
+
+@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #f7f8fc;
+  color: #333;
+  overflow: hidden; /* Prevent body scroll when sidebar is open */
+}
+
+/* --- Layout --- */
+.sidebar-menu {
+  width: 250px;
+  background-color: #fff;
+  border-right: 1px solid #e0e0e0;
+  transition: width 0.3s ease-in-out;
+  flex-shrink: 0;
+  z-index: 1021;
+}
+
+.sidebar-menu.collapsed {
+  width: 80px;
+}
+
+.main-content-wrapper {
+  background-color: #f7f8fc;
+  transition: margin-left 0.3s ease-in-out;
+  overflow-y: auto; /* Allow main content to scroll */
+}
+
+.dashboard-container {
+  padding: 1.5rem; /* Consistent padding for content */
+}
+
+/* --- Header --- */
+.header-bar {
+  background-color: #fff !important;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: none !important;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.search-input {
+  border-radius: 20px;
+  background-color: #f0f2f5;
+  border: none;
+  padding-left: 20px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4d4f;
+  color: #fff;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.user-profile-dropdown {
+  background-color: transparent !important;
+  border: none !important;
+  color: #333 !important;
+  box-shadow: none !important;
+}
+
+.user-avatar {
+  font-size: 1.5rem;
+}
+
+/* --- Sidebar Elements --- */
+.sidebar-menu .nav-link {
+  color: #555;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+.sidebar-menu .nav-link:hover,
+.sidebar-menu .nav-link.active {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.sidebar-menu .nav-link i {
+  color: #999;
+}
+
+.sidebar-menu .nav-link.active i {
+  color: #1890ff;
+}
+
+/* --- Page Specifics (Dashboard, Issues, Details) --- */
+.main-title {
+  font-weight: 600;
+}
+
+.subtitle {
+  color: #6c757d;
+}
+
+.summary-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.summary-card .card-value {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.issues-table thead th {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.issues-table tbody td {
+  vertical-align: middle;
+}
+
+/* Badges */
+.status-badge, .priority-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-submitted, .status-open, .priority-high, .badge-high { background-color: #fff1f0; color: #ff4d4f; }
+.status-assigned, .priority-medium { background-color: #e6f7ff; color: #1890ff; }
+.status-resolved { background-color: #f6ffed; color: #52c41a; }
+.status-pending, .status-in-progress, .status-in progress, .priority-critical { background-color: #fffbe6; color: #faad14; }
+.priority-low { background-color: #f0f0f0; color: #595959; }
+
+
+/* --- RESPONSIVE STYLES --- */
+@media (max-width: 991.98px) {
+  .sidebar-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar-menu:not(.collapsed) {
+    transform: translateX(0);
+    width: 250px; /* Full width when open on mobile */
+  }
+
+  /* When collapsed on mobile, it should be fully hidden */
+  .sidebar-menu.collapsed {
+    transform: translateX(-100%);
+    width: 250px; /* Keep width consistent for animation */
+  }
+
+  .main-content-wrapper {
+    margin-left: 0 !important; /* Main content takes full width */
+  }
+}
+
+/* --- NEW STYLE FOR TAGS --- */
+.badge-tag {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #e9ecef;
+  color: #495057;
+  text-transform: capitalize;
+}
