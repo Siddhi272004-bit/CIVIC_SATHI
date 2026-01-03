@@ -22,6 +22,32 @@ Both interfaces are powered by a shared backend and real-time database, ensuring
 
 A lightweight, intuitive web application that allows citizens to report everyday civic issues such as potholes, garbage overflow, broken streetlights, and water leaks.
 
+**📂 Project Structure**
+CIVIC_SATHI/
+├── User_Side_Interface/          # User/citizen web app
+│   ├── app/
+│   ├── components/
+│   ├── hooks/
+│   ├── lib/
+│   ├── public/
+│   ├── styles/
+│   └── types/
+│
+├── admin-frontend/               # Municipal admin dashboard
+│   ├── public/
+│   ├── src/
+│   ├── .gitignore
+│   ├── package.json
+│   ├── seed.js
+│
+├── public/                       
+├── src/                          
+├── .gitignore
+├── README.md                     
+├── package-lock.json
+└── package.json
+
+
 **✨ Key Features (User Side)**
 
 **->Quick Issue Reporting**
