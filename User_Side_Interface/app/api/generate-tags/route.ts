@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "models/gemma-3-4b-it" });
 
     const prompt = `
       You are a civic issue analysis bot. Extract 1-3 specific tags from this description.

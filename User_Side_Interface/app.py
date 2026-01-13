@@ -111,7 +111,7 @@ def generate_tags_from_description(description: str) -> str:
         genai.configure(api_key=api_key)
         
         logging.info("API key loaded successfully. Configuring model...")
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('models/gemma-3-4b-it')
         
         prompt = f"""
         You are a civic issue analysis bot. Your task is to extract highly specific keywords from a description.
