@@ -682,8 +682,8 @@ export default function ReportIssuePage() {
         }),
        });
 
-        if (departmentResponse.ok) {
-          const departmentData = await departmentResponse.json();
+        if (deptResponse.ok) {
+          const departmentData = await deptResponse.json();
           // The API returns { department: "..." }
           if (departmentData.department) {
             assignedDepartment = departmentData.department;
