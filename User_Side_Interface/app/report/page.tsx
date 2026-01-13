@@ -1,630 +1,148 @@
 
 
 
-"use client"
+// "use client"
 
-import type React from "react"
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Camera, MapPin, Upload, Mic, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import { throttledFetch } from "@/lib/throttle"
+// import type React from "react"
+// import { useState, useRef, useEffect } from "react"
+// import { Button } from "@/components/ui/button"
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+// import { Input } from "@/components/ui/input"
+// import { Label } from "@/components/ui/label"
+// import { Textarea } from "@/components/ui/textarea"
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// import { ArrowLeft, Camera, MapPin, Upload, Mic, CheckCircle } from "lucide-react"
+// import Link from "next/link"
+// import { throttledFetch } from "@/lib/throttle"
 
-// firebase imports - only Firestore is needed
-import { db } from "@/lib/firebaseconfig"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+// // firebase imports - only Firestore is needed
+// import { db } from "@/lib/firebaseconfig"
+// import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 
-// Add a base URL for your local Flask API
-// const API_BASE_URL = "http://127.0.0.1:5000";
-const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com";
+// // Add a base URL for your local Flask API
+// // const API_BASE_URL = "http://127.0.0.1:5000";
+// const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com";
 
-export default function ReportIssuePage() {
-    const [isSubmitted, setIsSubmitted] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [selectedImage, setSelectedImage] = useState<string | null>(null)
+// export default function ReportIssuePage() {
+//     const [isSubmitted, setIsSubmitted] = useState(false)
+//     const [isSubmitting, setIsSubmitting] = useState(false)
+//     const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
-    // Correctly declare state variables for file and audio blob
-    const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
-    const [audioUrl, setAudioUrl] = useState<string | null>(null)
+//     // Correctly declare state variables for file and audio blob
+//     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+//     const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+//     const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
-    const [location, setLocation] = useState("")
-    const [issueType, setIssueType] = useState("")
-    const [description, setDescription] = useState("")
-    const [displayTags, setDisplayTags] = useState("")
-    const [debouncedDescription, setDebouncedDescription] = useState(description);
-    const [isListening, setIsListening] = useState(false)
-    const recognitionRef = useRef<any | null>(null)
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-    const [isRecording, setIsRecording] = useState(false)
+//     const [location, setLocation] = useState("")
+//     const [issueType, setIssueType] = useState("")
+//     const [description, setDescription] = useState("")
+//     const [displayTags, setDisplayTags] = useState("")
+//     const [debouncedDescription, setDebouncedDescription] = useState(description);
+//     const [isListening, setIsListening] = useState(false)
+//     const recognitionRef = useRef<any | null>(null)
+//     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+//     const [isRecording, setIsRecording] = useState(false)
 
-    // Debounce function to prevent API calls on every keystroke
-    const debounce = (func: Function, delay: number) => {
-        let timeout: NodeJS.Timeout;
-        return (...args: any[]) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func(...args), delay);
-        };
-    };
+//     // Debounce function to prevent API calls on every keystroke
+//     const debounce = (func: Function, delay: number) => {
+//         let timeout: NodeJS.Timeout;
+//         return (...args: any[]) => {
+//             clearTimeout(timeout);
+//             timeout = setTimeout(() => func(...args), delay);
+//         };
+//     };
 
-    // Use a useEffect to call the tags API when the description changes
-    useEffect(() => {
-        const fetchTags = async (desc: string) => {
-            if (desc.trim() === "") {
-                setDisplayTags("");
-                return;
-            }
-            try {
-                // const tagsResponse = await fetch(`${API_BASE_URL}/api/generate-tags`, {
-                //     method: "POST",
-                //     headers: { "Content-Type": "application/json" },
-                //     body: JSON.stringify({ description: desc }),
-                // });
-                const tagsResponse = await throttledFetch(`${API_BASE_URL}/api/generate-tags`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ description: desc }),
-                });
+//     // Use a useEffect to call the tags API when the description changes
+//     useEffect(() => {
+//         const fetchTags = async (desc: string) => {
+//             if (desc.trim() === "") {
+//                 setDisplayTags("");
+//                 return;
+//             }
+//             try {
+//                 // const tagsResponse = await fetch(`${API_BASE_URL}/api/generate-tags`, {
+//                 //     method: "POST",
+//                 //     headers: { "Content-Type": "application/json" },
+//                 //     body: JSON.stringify({ description: desc }),
+//                 // });
+//                 const tagsResponse = await throttledFetch(`${API_BASE_URL}/api/generate-tags`, {
+//                     method: "POST",
+//                     headers: { "Content-Type": "application/json" },
+//                     body: JSON.stringify({ description: desc }),
+//                 });
 
     
-                if (!tagsResponse.ok) {
-                    throw new Error(`Tag generation failed: ${tagsResponse.statusText}`);
-                }
-                const tagsData = await tagsResponse.json();
-                setDisplayTags(tagsData.generated_tags);
-            } catch (err) {
-                console.error("Error generating tags:", err);
-            }
-        };
+//                 if (!tagsResponse.ok) {
+//                     throw new Error(`Tag generation failed: ${tagsResponse.statusText}`);
+//                 }
+//                 const tagsData = await tagsResponse.json();
+//                 setDisplayTags(tagsData.generated_tags);
+//             } catch (err) {
+//                 console.error("Error generating tags:", err);
+//             }
+//         };
 
-        const debouncedFetchTags = debounce(fetchTags, 500);
-        debouncedFetchTags(description);
-    }, [description]);
+//         const debouncedFetchTags = debounce(fetchTags, 500);
+//         debouncedFetchTags(description);
+//     }, [description]);
 
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-            const mediaRecorder = new MediaRecorder(stream)
-            mediaRecorderRef.current = mediaRecorder
+//     const startRecording = async () => {
+//         try {
+//             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+//             const mediaRecorder = new MediaRecorder(stream)
+//             mediaRecorderRef.current = mediaRecorder
 
-            const chunks: BlobPart[] = []
+//             const chunks: BlobPart[] = []
 
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    chunks.push(event.data)
-                }
-            }
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: "audio/webm" })
-                setAudioBlob(blob)
-                setAudioUrl(URL.createObjectURL(blob))
-            }
-            mediaRecorder.start()
-            setIsRecording(true)
-        } catch (err) {
-            console.error("Error accessing microphone:", err)
-        }
-    }
-
-    const stopRecording = () => {
-        mediaRecorderRef.current?.stop()
-        setIsRecording(false)
-    }
-
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (file) {
-            setSelectedFile(file)
-            const reader = new FileReader()
-            reader.onload = (e) => setSelectedImage(e.target?.result as string)
-            reader.readAsDataURL(file)
-        }
-    }
-
-    const handleGetLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords
-                    setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
-                },
-                (error) => {
-                    console.error("Error getting location:", error)
-                    setLocation("Location access denied")
-                },
-            )
-        } else {
-            setLocation("Geolocation not supported")
-        }
-    }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!issueType || !location || !description) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      console.log("Submitting report...");
-
-      // --- STEP 1: SILENT DEPARTMENT ASSIGNMENT (Updated) ---
-      // Default to "General" if AI fails, so the user never gets stuck.
-      let assignedDepartment = "General Administration"; 
-
-      try{
-        const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
-
-        const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`,{
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: description, 
-            category: issueType,
-            tags: tagsToSend
-        }),
-       });
-
-        if (deptResponse.ok) {
-          const departmentData = await deptResponse.json();
-          // The API returns { department: "..." }
-          if (departmentData.department) {
-            assignedDepartment = departmentData.department;
-            console.log("AI silently assigned to:", assignedDepartment);
-          }
-        }
-      } catch (deptError) {
-        console.warn("Department assignment failed (using default):", deptError);
-        // We do NOT throw an error here. We let the submission continue 
-        // with "General Administration" so the user isn't blocked.
-      }
-
-      // --- STEP 2: IMAGE UPLOAD ---
-      let imageUrl = "";
-      if (selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        const response = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!response.ok) {
-          throw new Error(`Image upload failed: ${response.statusText}`);
-        }
-        const data = await response.json();
-        imageUrl = data.url;
-        console.log("Image uploaded:", imageUrl);
-      }
-
-      // --- STEP 3: AUDIO UPLOAD ---
-      let uploadedAudioUrl = "";
-      if (audioBlob) {
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'audio.webm');
-        const response = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!response.ok) {
-          throw new Error(`Audio upload failed: ${response.statusText}`);
-        }
-        const data = await response.json();
-        uploadedAudioUrl = data.url;
-        console.log("Audio uploaded:", uploadedAudioUrl);
-      }
-
-      // --- STEP 4: SAVE TO FIREBASE ---
-      await addDoc(collection(db, "reports"), {
-        type: issueType,
-        location,
-        description,
-        image: imageUrl,
-        audio: uploadedAudioUrl,
-        tags: displayTags, 
-        assignedDepartment: assignedDepartment, // <--- The AI result goes here
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
-
-      console.log("Report submitted successfully ✅");
-      setIsSubmitted(true);
-
-    } catch (err) {
-      console.error("Error submitting report:", err);
-      alert("Something went wrong. Please check your connection and try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-    const startVoiceInput = () => {
-        if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-            alert("Voice input is not supported in your browser. Please try Chrome or Safari.")
-            return
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-        const recognition = new SpeechRecognition()
-
-        recognition.continuous = false
-        recognition.interimResults = false
-        recognition.lang = "en-US"
-
-        recognition.onstart = () => setIsListening(true)
-
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript
-            setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
-            setIsListening(false)
-        }
-
-        recognition.onerror = (event: any) => {
-            console.error("Speech recognition error:", event.error)
-            setIsListening(false)
-            if (event.error === "not-allowed") {
-                alert("Microphone access denied. Please allow microphone access and try again.")
-            } else {
-                alert("Voice input failed. Please try again.")
-            }
-        }
-
-        recognition.onend = () => setIsListening(false)
-
-        recognitionRef.current = recognition
-        recognition.start()
-    }
-
-    const stopVoiceInput = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop()
-            setIsListening(false)
-        }
-    }
-
-    if (isSubmitted) {
-        return (
-            <div className="min-h-screen bg-background">
-                <header className="bg-primary text-primary-foreground px-4 py-4">
-                    <div className="max-w-md mx-auto flex items-center gap-3">
-                        <Link href="/">
-                            <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <h1 className="text-xl font-semibold">Report Submitted</h1>
-                    </div>
-                </header>
-                <main className="max-w-md mx-auto px-4 py-6 text-center">
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                        <CheckCircle className="h-16 w-16 text-green-500" />
-                        <h2 className="text-2xl font-bold">Thank You!</h2>
-                        <p className="text-muted-foreground">
-                            Your report has been successfully submitted and will be reviewed shortly.
-                        </p>
-                        <Button onClick={() => setIsSubmitted(false)} className="mt-4">
-                            Report Another Issue
-                        </Button>
-                        <Link href="/">
-                            <Button variant="link">Go to Dashboard</Button>
-                        </Link>
-                    </div>
-                </main>
-            </div>
-        );
-    }
-
-    return (
-        <div className="min-h-screen bg-background">
-            <header className="bg-primary text-primary-foreground px-4 py-4">
-                <div className="max-w-md mx-auto flex items-center gap-3">
-                    <Link href="/">
-                        <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <h1 className="text-xl font-semibold">Report Issue</h1>
-                </div>
-            </header>
-
-            <main className="max-w-md mx-auto px-4 py-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Camera className="h-5 w-5" />
-                                Photo Evidence
-                            </CardTitle>
-                            <CardDescription>Take or upload a photo of the issue</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {selectedImage ? (
-                                    <div className="relative">
-                                        <img
-                                            src={selectedImage || "/placeholder.svg"}
-                                            alt="Selected issue"
-                                            className="w-full h-48 object-cover rounded-lg border"
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="absolute top-2 right-2"
-                                            onClick={() => {
-                                                setSelectedImage(null)
-                                                setSelectedFile(null)
-                                            }}
-                                        >
-                                            Change
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                                        <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                                        <p className="text-sm text-muted-foreground mb-4">No photo selected</p>
-                                        <Label htmlFor="photo-upload" className="cursor-pointer">
-                                            <Button type="button" variant="outline" asChild>
-                                                <span>Choose Photo</span>
-                                            </Button>
-                                        </Label>
-                                    </div>
-                                )}
-                                <Input
-                                    id="photo-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    onChange={handleImageUpload}
-                                    className="sr-only"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Issue Type</CardTitle>
-                            <CardDescription>What type of problem are you reporting?</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Select value={issueType} onValueChange={setIssueType} required>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select issue type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="streetlight">Broken Streetlight</SelectItem>
-                                    <SelectItem value="electricpole">Electric Pole </SelectItem>
-                                    <SelectItem value="waterleakage">Water Leakage </SelectItem>
-                                    <SelectItem value="strayanimals">Stray Animals </SelectItem>
-                                    <SelectItem value="pothole">Pothole</SelectItem>
-                                    <SelectItem value="graffiti">Graffiti</SelectItem>
-                                    <SelectItem value="trash">Illegal Dumping</SelectItem>
-                                    <SelectItem value="sidewalk">Damaged Sidewalk</SelectItem>
-                                    <SelectItem value="traffic">Traffic Signal Issue</SelectItem>
-                                    <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <MapPin className="h-5 w-5" />
-                                Location
-                            </CardTitle>
-                            <CardDescription>Where is this issue located?</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                <Input
-                                    value={location}
-                                    onChange={(e) => setLocation(e.target.value)}
-                                    placeholder="Enter address or coordinates"
-                                    required
-                                />
-                                <Button type="button" variant="outline" onClick={handleGetLocation} className="w-full bg-transparent">
-                                    <MapPin className="h-4 w-4 mr-2" />
-                                    Use Current Location
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Description</CardTitle>
-                            <CardDescription>Provide details about the issue</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                <Textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Describe the issue in detail..."
-                                    rows={4}
-                                    required
-                                />
-                                <Button
-                                    type="button"
-                                    variant={isListening ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={isListening ? stopVoiceInput : startVoiceInput}
-                                    className={isListening ? "bg-red-600 hover:bg-red-700" : ""}
-                                >
-                                    <Mic className={`h-4 w-4 mr-2 ${isListening ? "animate-pulse" : ""}`} />
-                                    {isListening ? "Stop Voice Input" : "Voice Input"}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={isRecording ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={isRecording ? stopRecording : startRecording}
-                                    className={isRecording ? "bg-red-600 hover:bg-red-700" : ""}
-                                >
-                                    <Mic className={`h-4 w-4 mr-2 ${isRecording ? "animate-pulse" : ""}`} />
-                                    {isRecording ? "Stop Audio Recording" : "Record Audio"}
-                                </Button>
-                                {audioUrl && (
-                                    <div className="mt-2">
-                                        <audio controls src={audioUrl} className="w-full" />
-                                    </div>
-                                )}
-                                {isListening && (
-                                    <p className="text-sm text-muted-foreground">🎤 Listening... Speak now to add to your description</p>
-                                )}
-                            </div>
-                        </CardContent>
-                        {displayTags && (
-                            <CardContent>
-                                <div className="mt-4">
-                                    <p className="text-sm font-medium">Generated Tags:</p>
-                                    <p className="text-sm text-muted-foreground">{displayTags}</p>
-                                </div>
-                            </CardContent>
-                        )}
-                    </Card>
-
-                    <Button
-                        type="submit"
-                        className="w-full"
-                        size="lg"
-                        disabled={isSubmitting || !issueType || !location || !description}
-                    >
-                        {isSubmitting ? "Submitting..." : "Submit Report"}
-                    </Button>
-                </form>
-            </main>
-        </div>
-    )
-}
-// "use client";
-
-// import { useState, useRef } from "react";
-// import { Mic, Square, Upload, MapPin, Loader2, X } from "lucide-react";
-// import { Button } from "@/components/ui/button";
-// import { Textarea } from "@/components/ui/textarea";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Card, CardContent } from "@/components/ui/card";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// // --- FIREBASE IMPORTS ---
-// import { db, storage } from "@/lib/firebaseconfig"; // Using your correct config
-// import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-// import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-
-// const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com"; // Your Render Backend
-
-// export default function ReportIssue() {
-//   const [isRecording, setIsRecording] = useState(false);
-//   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-//   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-//   const [recordingDuration, setRecordingDuration] = useState(0);
-//   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-//   const [location, setLocation] = useState("");
-//   const [description, setDescription] = useState("");
-//   const [issueType, setIssueType] = useState("");
-//   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-//   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-//   const [displayTags, setDisplayTags] = useState<string>("");
-
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [isSubmitted, setIsSubmitted] = useState(false);
-//   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
-
-//   // --- AUDIO RECORDING LOGIC ---
-//   const startRecording = async () => {
-//     try {
-//       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-//       const recorder = new MediaRecorder(stream);
-//       const chunks: BlobPart[] = [];
-
-//       recorder.ondataavailable = (e) => chunks.push(e.data);
-//       recorder.onstop = () => {
-//         const blob = new Blob(chunks, { type: "audio/webm" });
-//         setAudioBlob(blob);
-//       };
-
-//       recorder.start();
-//       setMediaRecorder(recorder);
-//       setIsRecording(true);
-
-//       timerRef.current = setInterval(() => {
-//         setRecordingDuration((prev) => prev + 1);
-//       }, 1000);
-//     } catch (err) {
-//       console.error("Error accessing microphone:", err);
-//       alert("Microphone access is required to record audio.");
+//             mediaRecorder.ondataavailable = (event) => {
+//                 if (event.data.size > 0) {
+//                     chunks.push(event.data)
+//                 }
+//             }
+//             mediaRecorder.onstop = () => {
+//                 const blob = new Blob(chunks, { type: "audio/webm" })
+//                 setAudioBlob(blob)
+//                 setAudioUrl(URL.createObjectURL(blob))
+//             }
+//             mediaRecorder.start()
+//             setIsRecording(true)
+//         } catch (err) {
+//             console.error("Error accessing microphone:", err)
+//         }
 //     }
-//   };
 
-//   const stopRecording = () => {
-//     if (mediaRecorder && isRecording) {
-//       mediaRecorder.stop();
-//       setIsRecording(false);
-//       if (timerRef.current) clearInterval(timerRef.current);
-//       setRecordingDuration(0);
-//       mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+//     const stopRecording = () => {
+//         mediaRecorderRef.current?.stop()
+//         setIsRecording(false)
 //     }
-//   };
 
-//   const formatDuration = (seconds: number) => {
-//     const mins = Math.floor(seconds / 60);
-//     const secs = seconds % 60;
-//     return `${mins}:${secs.toString().padStart(2, "0")}`;
-//   };
-
-//   // --- FILE HANDLING ---
-//   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     if (e.target.files && e.target.files[0]) {
-//       const file = e.target.files[0];
-//       setSelectedFile(file);
-//       setPreviewUrl(URL.createObjectURL(file));
+//     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+//         const file = event.target.files?.[0]
+//         if (file) {
+//             setSelectedFile(file)
+//             const reader = new FileReader()
+//             reader.onload = (e) => setSelectedImage(e.target?.result as string)
+//             reader.readAsDataURL(file)
+//         }
 //     }
-//   };
 
-//   const removeFile = () => {
-//     setSelectedFile(null);
-//     setPreviewUrl(null);
-//   };
-
-//   // --- AI TAG GENERATION ---
-//   const handleGenerateTags = async () => {
-//     if (!description) return;
-//     setIsGeneratingTags(true);
-//     try {
-//       const response = await fetch(`${API_BASE_URL}/api/generate-tags`, {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({ description }),
-//       });
-//       const data = await response.json();
-//       if (data.generated_tags) {
-//         setDisplayTags(data.generated_tags);
-//       }
-//     } catch (error) {
-//       console.error("Error generating tags:", error);
-//     } finally {
-//       setIsGeneratingTags(false);
+//     const handleGetLocation = () => {
+//         if (navigator.geolocation) {
+//             navigator.geolocation.getCurrentPosition(
+//                 (position) => {
+//                     const { latitude, longitude } = position.coords
+//                     setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
+//                 },
+//                 (error) => {
+//                     console.error("Error getting location:", error)
+//                     setLocation("Location access denied")
+//                 },
+//             )
+//         } else {
+//             setLocation("Geolocation not supported")
+//         }
 //     }
-//   };
 
-//   // --- SUBMISSION HANDLER ---
 //   const handleSubmit = async (e: React.FormEvent) => {
 //     e.preventDefault();
 
@@ -636,17 +154,20 @@ export default function ReportIssuePage() {
 //     setIsSubmitting(true);
 
 //     try {
-//       // 1. GENERATE TAGS/DEPARTMENT (Via Python Backend)
-//       let assignedDepartment = "General Administration";
-//       const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
+//       console.log("Submitting report...");
 
-//       try {
-//         // Send request to Python backend just to get the department name
-//         const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
+//       // --- STEP 1: SILENT DEPARTMENT ASSIGNMENT (Updated) ---
+//       // Default to "General" if AI fails, so the user never gets stuck.
+//       let assignedDepartment = "General Administration"; 
+
+//       try{
+//         const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
+
+//         const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`,{
 //           method: 'POST',
 //           headers: { 'Content-Type': 'application/json' },
 //           body: JSON.stringify({
-//             description: description,
+//             description: description, 
 //             category: issueType,
 //             tags: tagsToSend
 //         }),
@@ -654,249 +175,1159 @@ export default function ReportIssuePage() {
 
 //         if (deptResponse.ok) {
 //           const departmentData = await deptResponse.json();
+//           // The API returns { department: "..." }
 //           if (departmentData.department) {
 //             assignedDepartment = departmentData.department;
+//             console.log("AI silently assigned to:", assignedDepartment);
 //           }
 //         }
 //       } catch (deptError) {
-//         console.warn("Department assignment failed, using default.");
+//         console.warn("Department assignment failed (using default):", deptError);
+//         // We do NOT throw an error here. We let the submission continue 
+//         // with "General Administration" so the user isn't blocked.
 //       }
 
-//       // 2. UPLOAD IMAGE (Direct to Firebase Storage)
+//       // --- STEP 2: IMAGE UPLOAD ---
 //       let imageUrl = "";
 //       if (selectedFile) {
-//         // Create reference: reports/images/timestamp_filename
-//         const imageRef = ref(storage, `reports/images/${Date.now()}_${selectedFile.name}`);
-//         const snapshot = await uploadBytes(imageRef, selectedFile);
-//         imageUrl = await getDownloadURL(snapshot.ref);
+//         const formData = new FormData();
+//         formData.append('file', selectedFile);
+//         const response = await fetch(`${API_BASE_URL}/api/upload`, {
+//           method: 'POST',
+//           body: formData,
+//         });
+//         if (!response.ok) {
+//           throw new Error(`Image upload failed: ${response.statusText}`);
+//         }
+//         const data = await response.json();
+//         imageUrl = data.url;
+//         console.log("Image uploaded:", imageUrl);
 //       }
 
-//       // 3. UPLOAD AUDIO (Direct to Firebase Storage)
+//       // --- STEP 3: AUDIO UPLOAD ---
 //       let uploadedAudioUrl = "";
 //       if (audioBlob) {
-//         const audioRef = ref(storage, `reports/audio/${Date.now()}_voice_note.webm`);
-//         const snapshot = await uploadBytes(audioRef, audioBlob);
-//         uploadedAudioUrl = await getDownloadURL(snapshot.ref);
+//         const formData = new FormData();
+//         formData.append('file', audioBlob, 'audio.webm');
+//         const response = await fetch(`${API_BASE_URL}/api/upload`, {
+//           method: 'POST',
+//           body: formData,
+//         });
+//         if (!response.ok) {
+//           throw new Error(`Audio upload failed: ${response.statusText}`);
+//         }
+//         const data = await response.json();
+//         uploadedAudioUrl = data.url;
+//         console.log("Audio uploaded:", uploadedAudioUrl);
 //       }
 
-//       // 4. SAVE REPORT DATA (Direct to Firestore)
+//       // --- STEP 4: SAVE TO FIREBASE ---
 //       await addDoc(collection(db, "reports"), {
 //         type: issueType,
 //         location,
 //         description,
 //         image: imageUrl,
 //         audio: uploadedAudioUrl,
-//         tags: tagsToSend,
-//         assignedDepartment: assignedDepartment,
+//         tags: displayTags, 
+//         assignedDepartment: assignedDepartment, // <--- The AI result goes here
 //         status: "pending",
 //         createdAt: serverTimestamp(),
 //       });
 
+//       console.log("Report submitted successfully ✅");
 //       setIsSubmitted(true);
+
 //     } catch (err) {
 //       console.error("Error submitting report:", err);
-//       alert("Error submitting report. See console for details.");
+//       alert("Something went wrong. Please check your connection and try again.");
 //     } finally {
 //       setIsSubmitting(false);
 //     }
 //   };
 
-//   if (isSubmitted) {
+//     const startVoiceInput = () => {
+//         if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+//             alert("Voice input is not supported in your browser. Please try Chrome or Safari.")
+//             return
+//         }
+
+//         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+//         const recognition = new SpeechRecognition()
+
+//         recognition.continuous = false
+//         recognition.interimResults = false
+//         recognition.lang = "en-US"
+
+//         recognition.onstart = () => setIsListening(true)
+
+//         recognition.onresult = (event: any) => {
+//             const transcript = event.results[0][0].transcript
+//             setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
+//             setIsListening(false)
+//         }
+
+//         recognition.onerror = (event: any) => {
+//             console.error("Speech recognition error:", event.error)
+//             setIsListening(false)
+//             if (event.error === "not-allowed") {
+//                 alert("Microphone access denied. Please allow microphone access and try again.")
+//             } else {
+//                 alert("Voice input failed. Please try again.")
+//             }
+//         }
+
+//         recognition.onend = () => setIsListening(false)
+
+//         recognitionRef.current = recognition
+//         recognition.start()
+//     }
+
+//     const stopVoiceInput = () => {
+//         if (recognitionRef.current) {
+//             recognitionRef.current.stop()
+//             setIsListening(false)
+//         }
+//     }
+
+//     if (isSubmitted) {
+//         return (
+//             <div className="min-h-screen bg-background">
+//                 <header className="bg-primary text-primary-foreground px-4 py-4">
+//                     <div className="max-w-md mx-auto flex items-center gap-3">
+//                         <Link href="/">
+//                             <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
+//                                 <ArrowLeft className="h-4 w-4" />
+//                             </Button>
+//                         </Link>
+//                         <h1 className="text-xl font-semibold">Report Submitted</h1>
+//                     </div>
+//                 </header>
+//                 <main className="max-w-md mx-auto px-4 py-6 text-center">
+//                     <div className="flex flex-col items-center justify-center space-y-4">
+//                         <CheckCircle className="h-16 w-16 text-green-500" />
+//                         <h2 className="text-2xl font-bold">Thank You!</h2>
+//                         <p className="text-muted-foreground">
+//                             Your report has been successfully submitted and will be reviewed shortly.
+//                         </p>
+//                         <Button onClick={() => setIsSubmitted(false)} className="mt-4">
+//                             Report Another Issue
+//                         </Button>
+//                         <Link href="/">
+//                             <Button variant="link">Go to Dashboard</Button>
+//                         </Link>
+//                     </div>
+//                 </main>
+//             </div>
+//         );
+//     }
+
 //     return (
-//       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-//         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-//           <Upload className="w-8 h-8 text-green-600" />
-//         </div>
-//         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-//           Report Submitted Successfully!
-//         </h2>
-//         <p className="text-gray-600 mb-6">
-//           Thank you for being a responsible citizen. Your report ID has been
-//           generated and sent to the relevant department.
-//         </p>
-//         <Button
-//           onClick={() => {
-//             setIsSubmitted(false);
-//             setLocation("");
-//             setDescription("");
-//             setIssueType("");
-//             setSelectedFile(null);
-//             setPreviewUrl(null);
-//             setAudioBlob(null);
-//             setDisplayTags("");
-//           }}
-//         >
-//           Submit Another Report
-//         </Button>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="max-w-2xl mx-auto p-6">
-//       <div className="mb-8">
-//         <h1 className="text-3xl font-bold text-gray-900">Report an Issue</h1>
-//         <p className="text-gray-600 mt-2">
-//           Help us improve our city by reporting civic issues in your area.
-//         </p>
-//       </div>
-
-//       <form onSubmit={handleSubmit} className="space-y-6">
-//         {/* Issue Type Selection */}
-//         <div className="space-y-2">
-//           <Label htmlFor="issue-type">Issue Type</Label>
-//           <Select value={issueType} onValueChange={setIssueType}>
-//             <SelectTrigger>
-//               <SelectValue placeholder="Select the type of issue" />
-//             </SelectTrigger>
-//             <SelectContent>
-//               <SelectItem value="sanitation">Sanitation & Garbage</SelectItem>
-//               <SelectItem value="roads">Roads & Potholes</SelectItem>
-//               <SelectItem value="water">Water Supply</SelectItem>
-//               <SelectItem value="electricity">Electricity & Street Lights</SelectItem>
-//               <SelectItem value="traffic">Traffic & Transport</SelectItem>
-//               <SelectItem value="other">Other</SelectItem>
-//             </SelectContent>
-//           </Select>
-//         </div>
-
-//         {/* Location Input */}
-//         <div className="space-y-2">
-//           <Label htmlFor="location">Location</Label>
-//           <div className="relative">
-//             <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-//             <Input
-//               id="location"
-//               placeholder="Enter location or landmark"
-//               className="pl-10"
-//               value={location}
-//               onChange={(e) => setLocation(e.target.value)}
-//             />
-//           </div>
-//         </div>
-
-//         {/* Description Input */}
-//         <div className="space-y-2">
-//           <Label htmlFor="description">Description</Label>
-//           <Textarea
-//             id="description"
-//             placeholder="Describe the issue in detail..."
-//             className="min-h-[120px]"
-//             value={description}
-//             onChange={(e) => setDescription(e.target.value)}
-//             onBlur={handleGenerateTags} 
-//           />
-//           {isGeneratingTags && (
-//              <p className="text-sm text-blue-500 flex items-center gap-2">
-//                <Loader2 className="h-3 w-3 animate-spin"/> Generating AI tags...
-//              </p>
-//           )}
-//           {displayTags && (
-//              <div className="mt-2">
-//                 <span className="text-xs font-semibold text-gray-500 uppercase">Detected Tags: </span>
-//                 <span className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">{displayTags}</span>
-//              </div>
-//           )}
-//         </div>
-
-//         {/* Image Upload */}
-//         <div className="space-y-2">
-//           <Label>Evidence (Photo)</Label>
-//           <Card className="border-dashed">
-//             <CardContent className="flex flex-col items-center justify-center py-6">
-//               {previewUrl ? (
-//                 <div className="relative w-full">
-//                   <img
-//                     src={previewUrl}
-//                     alt="Preview"
-//                     className="w-full h-48 object-cover rounded-md"
-//                   />
-//                   <Button
-//                     type="button"
-//                     variant="destructive"
-//                     size="icon"
-//                     className="absolute top-2 right-2 rounded-full"
-//                     onClick={removeFile}
-//                   >
-//                     <X className="h-4 w-4" />
-//                   </Button>
+//         <div className="min-h-screen bg-background">
+//             <header className="bg-primary text-primary-foreground px-4 py-4">
+//                 <div className="max-w-md mx-auto flex items-center gap-3">
+//                     <Link href="/">
+//                         <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
+//                             <ArrowLeft className="h-4 w-4" />
+//                         </Button>
+//                     </Link>
+//                     <h1 className="text-xl font-semibold">Report Issue</h1>
 //                 </div>
-//               ) : (
-//                 <>
-//                   <Upload className="h-10 w-10 text-gray-400 mb-2" />
-//                   <p className="text-sm text-gray-500 mb-2">
-//                     Click to upload or drag and drop
-//                   </p>
-//                   <Input
-//                     type="file"
-//                     accept="image/*"
-//                     className="hidden"
-//                     id="file-upload"
-//                     onChange={handleFileChange}
-//                   />
-//                   <Button
-//                     type="button"
-//                     variant="outline"
-//                     onClick={() => document.getElementById("file-upload")?.click()}
-//                   >
-//                     Select Photo
-//                   </Button>
-//                 </>
-//               )}
-//             </CardContent>
-//           </Card>
-//         </div>
+//             </header>
 
-//         {/* Audio Recording */}
-//         <div className="space-y-2">
-//           <Label>Voice Note (Optional)</Label>
-//           <div className="flex items-center gap-4">
-//             {!isRecording ? (
-//               <Button
-//                 type="button"
-//                 variant={audioBlob ? "secondary" : "outline"}
-//                 className="w-full justify-start gap-2"
-//                 onClick={startRecording}
-//               >
-//                 <Mic className="h-4 w-4" />
-//                 {audioBlob ? "Record Again" : "Start Recording"}
-//               </Button>
-//             ) : (
-//               <Button
-//                 type="button"
-//                 variant="destructive"
-//                 className="w-full justify-start gap-2 animate-pulse"
-//                 onClick={stopRecording}
-//               >
-//                 <Square className="h-4 w-4" />
-//                 Stop Recording ({formatDuration(recordingDuration)})
-//               </Button>
-//             )}
-//           </div>
-//           {audioBlob && !isRecording && (
-//             <p className="text-sm text-green-600 flex items-center gap-2">
-//               ✓ Audio recorded ready to submit
-//             </p>
-//           )}
-//         </div>
+//             <main className="max-w-md mx-auto px-4 py-6">
+//                 <form onSubmit={handleSubmit} className="space-y-6">
+//                     <Card>
+//                         <CardHeader>
+//                             <CardTitle className="flex items-center gap-2">
+//                                 <Camera className="h-5 w-5" />
+//                                 Photo Evidence
+//                             </CardTitle>
+//                             <CardDescription>Take or upload a photo of the issue</CardDescription>
+//                         </CardHeader>
+//                         <CardContent>
+//                             <div className="space-y-4">
+//                                 {selectedImage ? (
+//                                     <div className="relative">
+//                                         <img
+//                                             src={selectedImage || "/placeholder.svg"}
+//                                             alt="Selected issue"
+//                                             className="w-full h-48 object-cover rounded-lg border"
+//                                         />
+//                                         <Button
+//                                             type="button"
+//                                             variant="secondary"
+//                                             size="sm"
+//                                             className="absolute top-2 right-2"
+//                                             onClick={() => {
+//                                                 setSelectedImage(null)
+//                                                 setSelectedFile(null)
+//                                             }}
+//                                         >
+//                                             Change
+//                                         </Button>
+//                                     </div>
+//                                 ) : (
+//                                     <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+//                                         <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+//                                         <p className="text-sm text-muted-foreground mb-4">No photo selected</p>
+//                                         <Label htmlFor="photo-upload" className="cursor-pointer">
+//                                             <Button type="button" variant="outline" asChild>
+//                                                 <span>Choose Photo</span>
+//                                             </Button>
+//                                         </Label>
+//                                     </div>
+//                                 )}
+//                                 <Input
+//                                     id="photo-upload"
+//                                     type="file"
+//                                     accept="image/*"
+//                                     capture="environment"
+//                                     onChange={handleImageUpload}
+//                                     className="sr-only"
+//                                 />
+//                             </div>
+//                         </CardContent>
+//                     </Card>
 
-//         {/* Submit Button */}
-//         <Button
-//           type="submit"
-//           className="w-full"
-//           size="lg"
-//           disabled={isSubmitting}
-//         >
-//           {isSubmitting ? (
-//             <>
-//               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-//               Submitting...
-//             </>
-//           ) : (
-//             "Submit Report"
-//           )}
-//         </Button>
-//       </form>
-//     </div>
-//   );
+//                     <Card>
+//                         <CardHeader>
+//                             <CardTitle>Issue Type</CardTitle>
+//                             <CardDescription>What type of problem are you reporting?</CardDescription>
+//                         </CardHeader>
+//                         <CardContent>
+//                             <Select value={issueType} onValueChange={setIssueType} required>
+//                                 <SelectTrigger>
+//                                     <SelectValue placeholder="Select issue type" />
+//                                 </SelectTrigger>
+//                                 <SelectContent>
+//                                     <SelectItem value="streetlight">Broken Streetlight</SelectItem>
+//                                     <SelectItem value="electricpole">Electric Pole </SelectItem>
+//                                     <SelectItem value="waterleakage">Water Leakage </SelectItem>
+//                                     <SelectItem value="strayanimals">Stray Animals </SelectItem>
+//                                     <SelectItem value="pothole">Pothole</SelectItem>
+//                                     <SelectItem value="graffiti">Graffiti</SelectItem>
+//                                     <SelectItem value="trash">Illegal Dumping</SelectItem>
+//                                     <SelectItem value="sidewalk">Damaged Sidewalk</SelectItem>
+//                                     <SelectItem value="traffic">Traffic Signal Issue</SelectItem>
+//                                     <SelectItem value="other">Other</SelectItem>
+//                                 </SelectContent>
+//                             </Select>
+//                         </CardContent>
+//                     </Card>
+
+//                     <Card>
+//                         <CardHeader>
+//                             <CardTitle className="flex items-center gap-2">
+//                                 <MapPin className="h-5 w-5" />
+//                                 Location
+//                             </CardTitle>
+//                             <CardDescription>Where is this issue located?</CardDescription>
+//                         </CardHeader>
+//                         <CardContent>
+//                             <div className="space-y-3">
+//                                 <Input
+//                                     value={location}
+//                                     onChange={(e) => setLocation(e.target.value)}
+//                                     placeholder="Enter address or coordinates"
+//                                     required
+//                                 />
+//                                 <Button type="button" variant="outline" onClick={handleGetLocation} className="w-full bg-transparent">
+//                                     <MapPin className="h-4 w-4 mr-2" />
+//                                     Use Current Location
+//                                 </Button>
+//                             </div>
+//                         </CardContent>
+//                     </Card>
+
+//                     <Card>
+//                         <CardHeader>
+//                             <CardTitle>Description</CardTitle>
+//                             <CardDescription>Provide details about the issue</CardDescription>
+//                         </CardHeader>
+//                         <CardContent>
+//                             <div className="space-y-3">
+//                                 <Textarea
+//                                     value={description}
+//                                     onChange={(e) => setDescription(e.target.value)}
+//                                     placeholder="Describe the issue in detail..."
+//                                     rows={4}
+//                                     required
+//                                 />
+//                                 <Button
+//                                     type="button"
+//                                     variant={isListening ? "default" : "outline"}
+//                                     size="sm"
+//                                     onClick={isListening ? stopVoiceInput : startVoiceInput}
+//                                     className={isListening ? "bg-red-600 hover:bg-red-700" : ""}
+//                                 >
+//                                     <Mic className={`h-4 w-4 mr-2 ${isListening ? "animate-pulse" : ""}`} />
+//                                     {isListening ? "Stop Voice Input" : "Voice Input"}
+//                                 </Button>
+//                                 <Button
+//                                     type="button"
+//                                     variant={isRecording ? "default" : "outline"}
+//                                     size="sm"
+//                                     onClick={isRecording ? stopRecording : startRecording}
+//                                     className={isRecording ? "bg-red-600 hover:bg-red-700" : ""}
+//                                 >
+//                                     <Mic className={`h-4 w-4 mr-2 ${isRecording ? "animate-pulse" : ""}`} />
+//                                     {isRecording ? "Stop Audio Recording" : "Record Audio"}
+//                                 </Button>
+//                                 {audioUrl && (
+//                                     <div className="mt-2">
+//                                         <audio controls src={audioUrl} className="w-full" />
+//                                     </div>
+//                                 )}
+//                                 {isListening && (
+//                                     <p className="text-sm text-muted-foreground">🎤 Listening... Speak now to add to your description</p>
+//                                 )}
+//                             </div>
+//                         </CardContent>
+//                         {displayTags && (
+//                             <CardContent>
+//                                 <div className="mt-4">
+//                                     <p className="text-sm font-medium">Generated Tags:</p>
+//                                     <p className="text-sm text-muted-foreground">{displayTags}</p>
+//                                 </div>
+//                             </CardContent>
+//                         )}
+//                     </Card>
+
+//                     <Button
+//                         type="submit"
+//                         className="w-full"
+//                         size="lg"
+//                         disabled={isSubmitting || !issueType || !location || !description}
+//                     >
+//                         {isSubmitting ? "Submitting..." : "Submit Report"}
+//                     </Button>
+//                 </form>
+//             </main>
+//         </div>
+//     )
 // }
+// // "use client";
+
+// // import { useState, useRef } from "react";
+// // import { Mic, Square, Upload, MapPin, Loader2, X } from "lucide-react";
+// // import { Button } from "@/components/ui/button";
+// // import { Textarea } from "@/components/ui/textarea";
+// // import { Input } from "@/components/ui/input";
+// // import { Label } from "@/components/ui/label";
+// // import { Card, CardContent } from "@/components/ui/card";
+// // import {
+// //   Select,
+// //   SelectContent,
+// //   SelectItem,
+// //   SelectTrigger,
+// //   SelectValue,
+// // } from "@/components/ui/select";
+// // // --- FIREBASE IMPORTS ---
+// // import { db, storage } from "@/lib/firebaseconfig"; // Using your correct config
+// // import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// // import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+
+// // const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com"; // Your Render Backend
+
+// // export default function ReportIssue() {
+// //   const [isRecording, setIsRecording] = useState(false);
+// //   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+// //   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+// //   const [recordingDuration, setRecordingDuration] = useState(0);
+// //   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+// //   const [location, setLocation] = useState("");
+// //   const [description, setDescription] = useState("");
+// //   const [issueType, setIssueType] = useState("");
+// //   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+// //   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+// //   const [displayTags, setDisplayTags] = useState<string>("");
+
+// //   const [isSubmitting, setIsSubmitting] = useState(false);
+// //   const [isSubmitted, setIsSubmitted] = useState(false);
+// //   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+
+// //   // --- AUDIO RECORDING LOGIC ---
+// //   const startRecording = async () => {
+// //     try {
+// //       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+// //       const recorder = new MediaRecorder(stream);
+// //       const chunks: BlobPart[] = [];
+
+// //       recorder.ondataavailable = (e) => chunks.push(e.data);
+// //       recorder.onstop = () => {
+// //         const blob = new Blob(chunks, { type: "audio/webm" });
+// //         setAudioBlob(blob);
+// //       };
+
+// //       recorder.start();
+// //       setMediaRecorder(recorder);
+// //       setIsRecording(true);
+
+// //       timerRef.current = setInterval(() => {
+// //         setRecordingDuration((prev) => prev + 1);
+// //       }, 1000);
+// //     } catch (err) {
+// //       console.error("Error accessing microphone:", err);
+// //       alert("Microphone access is required to record audio.");
+// //     }
+// //   };
+
+// //   const stopRecording = () => {
+// //     if (mediaRecorder && isRecording) {
+// //       mediaRecorder.stop();
+// //       setIsRecording(false);
+// //       if (timerRef.current) clearInterval(timerRef.current);
+// //       setRecordingDuration(0);
+// //       mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+// //     }
+// //   };
+
+// //   const formatDuration = (seconds: number) => {
+// //     const mins = Math.floor(seconds / 60);
+// //     const secs = seconds % 60;
+// //     return `${mins}:${secs.toString().padStart(2, "0")}`;
+// //   };
+
+// //   // --- FILE HANDLING ---
+// //   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+// //     if (e.target.files && e.target.files[0]) {
+// //       const file = e.target.files[0];
+// //       setSelectedFile(file);
+// //       setPreviewUrl(URL.createObjectURL(file));
+// //     }
+// //   };
+
+// //   const removeFile = () => {
+// //     setSelectedFile(null);
+// //     setPreviewUrl(null);
+// //   };
+
+// //   // --- AI TAG GENERATION ---
+// //   const handleGenerateTags = async () => {
+// //     if (!description) return;
+// //     setIsGeneratingTags(true);
+// //     try {
+// //       const response = await fetch(`${API_BASE_URL}/api/generate-tags`, {
+// //         method: "POST",
+// //         headers: { "Content-Type": "application/json" },
+// //         body: JSON.stringify({ description }),
+// //       });
+// //       const data = await response.json();
+// //       if (data.generated_tags) {
+// //         setDisplayTags(data.generated_tags);
+// //       }
+// //     } catch (error) {
+// //       console.error("Error generating tags:", error);
+// //     } finally {
+// //       setIsGeneratingTags(false);
+// //     }
+// //   };
+
+// //   // --- SUBMISSION HANDLER ---
+// //   const handleSubmit = async (e: React.FormEvent) => {
+// //     e.preventDefault();
+
+// //     if (!issueType || !location || !description) {
+// //       alert("Please fill in all required fields.");
+// //       return;
+// //     }
+
+// //     setIsSubmitting(true);
+
+// //     try {
+// //       // 1. GENERATE TAGS/DEPARTMENT (Via Python Backend)
+// //       let assignedDepartment = "General Administration";
+// //       const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
+
+// //       try {
+// //         // Send request to Python backend just to get the department name
+// //         const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
+// //           method: 'POST',
+// //           headers: { 'Content-Type': 'application/json' },
+// //           body: JSON.stringify({
+// //             description: description,
+// //             category: issueType,
+// //             tags: tagsToSend
+// //         }),
+// //        });
+
+// //         if (deptResponse.ok) {
+// //           const departmentData = await deptResponse.json();
+// //           if (departmentData.department) {
+// //             assignedDepartment = departmentData.department;
+// //           }
+// //         }
+// //       } catch (deptError) {
+// //         console.warn("Department assignment failed, using default.");
+// //       }
+
+// //       // 2. UPLOAD IMAGE (Direct to Firebase Storage)
+// //       let imageUrl = "";
+// //       if (selectedFile) {
+// //         // Create reference: reports/images/timestamp_filename
+// //         const imageRef = ref(storage, `reports/images/${Date.now()}_${selectedFile.name}`);
+// //         const snapshot = await uploadBytes(imageRef, selectedFile);
+// //         imageUrl = await getDownloadURL(snapshot.ref);
+// //       }
+
+// //       // 3. UPLOAD AUDIO (Direct to Firebase Storage)
+// //       let uploadedAudioUrl = "";
+// //       if (audioBlob) {
+// //         const audioRef = ref(storage, `reports/audio/${Date.now()}_voice_note.webm`);
+// //         const snapshot = await uploadBytes(audioRef, audioBlob);
+// //         uploadedAudioUrl = await getDownloadURL(snapshot.ref);
+// //       }
+
+// //       // 4. SAVE REPORT DATA (Direct to Firestore)
+// //       await addDoc(collection(db, "reports"), {
+// //         type: issueType,
+// //         location,
+// //         description,
+// //         image: imageUrl,
+// //         audio: uploadedAudioUrl,
+// //         tags: tagsToSend,
+// //         assignedDepartment: assignedDepartment,
+// //         status: "pending",
+// //         createdAt: serverTimestamp(),
+// //       });
+
+// //       setIsSubmitted(true);
+// //     } catch (err) {
+// //       console.error("Error submitting report:", err);
+// //       alert("Error submitting report. See console for details.");
+// //     } finally {
+// //       setIsSubmitting(false);
+// //     }
+// //   };
+
+// //   if (isSubmitted) {
+// //     return (
+// //       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+// //         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+// //           <Upload className="w-8 h-8 text-green-600" />
+// //         </div>
+// //         <h2 className="text-2xl font-bold text-gray-900 mb-2">
+// //           Report Submitted Successfully!
+// //         </h2>
+// //         <p className="text-gray-600 mb-6">
+// //           Thank you for being a responsible citizen. Your report ID has been
+// //           generated and sent to the relevant department.
+// //         </p>
+// //         <Button
+// //           onClick={() => {
+// //             setIsSubmitted(false);
+// //             setLocation("");
+// //             setDescription("");
+// //             setIssueType("");
+// //             setSelectedFile(null);
+// //             setPreviewUrl(null);
+// //             setAudioBlob(null);
+// //             setDisplayTags("");
+// //           }}
+// //         >
+// //           Submit Another Report
+// //         </Button>
+// //       </div>
+// //     );
+// //   }
+
+// //   return (
+// //     <div className="max-w-2xl mx-auto p-6">
+// //       <div className="mb-8">
+// //         <h1 className="text-3xl font-bold text-gray-900">Report an Issue</h1>
+// //         <p className="text-gray-600 mt-2">
+// //           Help us improve our city by reporting civic issues in your area.
+// //         </p>
+// //       </div>
+
+// //       <form onSubmit={handleSubmit} className="space-y-6">
+// //         {/* Issue Type Selection */}
+// //         <div className="space-y-2">
+// //           <Label htmlFor="issue-type">Issue Type</Label>
+// //           <Select value={issueType} onValueChange={setIssueType}>
+// //             <SelectTrigger>
+// //               <SelectValue placeholder="Select the type of issue" />
+// //             </SelectTrigger>
+// //             <SelectContent>
+// //               <SelectItem value="sanitation">Sanitation & Garbage</SelectItem>
+// //               <SelectItem value="roads">Roads & Potholes</SelectItem>
+// //               <SelectItem value="water">Water Supply</SelectItem>
+// //               <SelectItem value="electricity">Electricity & Street Lights</SelectItem>
+// //               <SelectItem value="traffic">Traffic & Transport</SelectItem>
+// //               <SelectItem value="other">Other</SelectItem>
+// //             </SelectContent>
+// //           </Select>
+// //         </div>
+
+// //         {/* Location Input */}
+// //         <div className="space-y-2">
+// //           <Label htmlFor="location">Location</Label>
+// //           <div className="relative">
+// //             <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+// //             <Input
+// //               id="location"
+// //               placeholder="Enter location or landmark"
+// //               className="pl-10"
+// //               value={location}
+// //               onChange={(e) => setLocation(e.target.value)}
+// //             />
+// //           </div>
+// //         </div>
+
+// //         {/* Description Input */}
+// //         <div className="space-y-2">
+// //           <Label htmlFor="description">Description</Label>
+// //           <Textarea
+// //             id="description"
+// //             placeholder="Describe the issue in detail..."
+// //             className="min-h-[120px]"
+// //             value={description}
+// //             onChange={(e) => setDescription(e.target.value)}
+// //             onBlur={handleGenerateTags} 
+// //           />
+// //           {isGeneratingTags && (
+// //              <p className="text-sm text-blue-500 flex items-center gap-2">
+// //                <Loader2 className="h-3 w-3 animate-spin"/> Generating AI tags...
+// //              </p>
+// //           )}
+// //           {displayTags && (
+// //              <div className="mt-2">
+// //                 <span className="text-xs font-semibold text-gray-500 uppercase">Detected Tags: </span>
+// //                 <span className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">{displayTags}</span>
+// //              </div>
+// //           )}
+// //         </div>
+
+// //         {/* Image Upload */}
+// //         <div className="space-y-2">
+// //           <Label>Evidence (Photo)</Label>
+// //           <Card className="border-dashed">
+// //             <CardContent className="flex flex-col items-center justify-center py-6">
+// //               {previewUrl ? (
+// //                 <div className="relative w-full">
+// //                   <img
+// //                     src={previewUrl}
+// //                     alt="Preview"
+// //                     className="w-full h-48 object-cover rounded-md"
+// //                   />
+// //                   <Button
+// //                     type="button"
+// //                     variant="destructive"
+// //                     size="icon"
+// //                     className="absolute top-2 right-2 rounded-full"
+// //                     onClick={removeFile}
+// //                   >
+// //                     <X className="h-4 w-4" />
+// //                   </Button>
+// //                 </div>
+// //               ) : (
+// //                 <>
+// //                   <Upload className="h-10 w-10 text-gray-400 mb-2" />
+// //                   <p className="text-sm text-gray-500 mb-2">
+// //                     Click to upload or drag and drop
+// //                   </p>
+// //                   <Input
+// //                     type="file"
+// //                     accept="image/*"
+// //                     className="hidden"
+// //                     id="file-upload"
+// //                     onChange={handleFileChange}
+// //                   />
+// //                   <Button
+// //                     type="button"
+// //                     variant="outline"
+// //                     onClick={() => document.getElementById("file-upload")?.click()}
+// //                   >
+// //                     Select Photo
+// //                   </Button>
+// //                 </>
+// //               )}
+// //             </CardContent>
+// //           </Card>
+// //         </div>
+
+// //         {/* Audio Recording */}
+// //         <div className="space-y-2">
+// //           <Label>Voice Note (Optional)</Label>
+// //           <div className="flex items-center gap-4">
+// //             {!isRecording ? (
+// //               <Button
+// //                 type="button"
+// //                 variant={audioBlob ? "secondary" : "outline"}
+// //                 className="w-full justify-start gap-2"
+// //                 onClick={startRecording}
+// //               >
+// //                 <Mic className="h-4 w-4" />
+// //                 {audioBlob ? "Record Again" : "Start Recording"}
+// //               </Button>
+// //             ) : (
+// //               <Button
+// //                 type="button"
+// //                 variant="destructive"
+// //                 className="w-full justify-start gap-2 animate-pulse"
+// //                 onClick={stopRecording}
+// //               >
+// //                 <Square className="h-4 w-4" />
+// //                 Stop Recording ({formatDuration(recordingDuration)})
+// //               </Button>
+// //             )}
+// //           </div>
+// //           {audioBlob && !isRecording && (
+// //             <p className="text-sm text-green-600 flex items-center gap-2">
+// //               ✓ Audio recorded ready to submit
+// //             </p>
+// //           )}
+// //         </div>
+
+// //         {/* Submit Button */}
+// //         <Button
+// //           type="submit"
+// //           className="w-full"
+// //           size="lg"
+// //           disabled={isSubmitting}
+// //         >
+// //           {isSubmitting ? (
+// //             <>
+// //               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+// //               Submitting...
+// //             </>
+// //           ) : (
+// //             "Submit Report"
+// //           )}
+// //         </Button>
+// //       </form>
+// //     </div>
+// //   );
+// // }
+
+
+"use client";
+
+import { useState, useRef } from "react";
+import { ArrowLeft, Mic, Square, Upload, MapPin, Loader2, X, Camera } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useRouter } from "next/navigation";
+
+// --- FIREBASE IMPORTS ---
+import { db, storage } from "@/lib/firebaseconfig";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+
+const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com"; 
+
+export default function ReportIssue() {
+  const router = useRouter();
+  
+  // Form State
+  const [issueType, setIssueType] = useState("");
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // AI & Status State
+  const [displayTags, setDisplayTags] = useState<string>("");
+  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+
+  // Audio State
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // --- 1. LOCATION LOGIC ---
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Storing coordinates as string for now
+        const coords = `${position.coords.latitude}, ${position.coords.longitude}`;
+        setLocation(coords);
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Unable to retrieve your location.");
+        setIsLocating(false);
+      }
+    );
+  };
+
+  // --- 2. AI TAG GENERATION ---
+  const handleGenerateTags = async () => {
+    if (!description || description.length < 3) return;
+    
+    setIsGeneratingTags(true);
+    try {
+      // 1. Generate Tags
+      const response = await fetch(`${API_BASE_URL}/api/generate-tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      const data = await response.json();
+      
+      if (data.generated_tags) {
+        setDisplayTags(data.generated_tags);
+        console.log("Generated Tags:", data.generated_tags);
+      }
+    } catch (error) {
+      console.error("Error generating tags:", error);
+    } finally {
+      setIsGeneratingTags(false);
+    }
+  };
+
+  // --- 3. FILE HANDLING ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  // --- 4. AUDIO RECORDING ---
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        setAudioBlob(blob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      
+      timerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("Microphone access is required.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+      setRecordingDuration(0);
+      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+    }
+  };
+
+  // --- 5. SUBMISSION LOGIC ---
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!issueType || !location || !description) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // A. Determine Tags to Send
+      // If we haven't generated tags yet, try to use the description or a default
+      const tagsToSend = displayTags && displayTags.length > 0 
+        ? displayTags 
+        : `General Issue: ${description}`;
+
+      // B. AI Department Assignment
+      let assignedDepartment = "General Administration"; 
+      try {
+        console.log("Asking AI to assign department using tags:", tagsToSend);
+        const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tags: tagsToSend // <--- CRITICAL FIX: Sending 'tags' key correctly
+          }),
+        });
+
+        if (deptResponse.ok) {
+          const departmentData = await deptResponse.json();
+          if (departmentData.department) {
+            assignedDepartment = departmentData.department;
+            console.log("Assigned Department:", assignedDepartment);
+          }
+        } else {
+            console.warn("Department API returned error:", deptResponse.status);
+        }
+      } catch (deptError) {
+        console.warn("AI Department assignment failed, using default.");
+      }
+
+      // C. Upload Image to Firebase
+      let imageUrl = "";
+      if (selectedFile) {
+        const imageRef = ref(storage, `reports/images/${Date.now()}_${selectedFile.name}`);
+        const snapshot = await uploadBytes(imageRef, selectedFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
+      }
+
+      // D. Upload Audio to Firebase
+      let uploadedAudioUrl = "";
+      if (audioBlob) {
+        const audioRef = ref(storage, `reports/audio/${Date.now()}_voice_note.webm`);
+        const snapshot = await uploadBytes(audioRef, audioBlob);
+        uploadedAudioUrl = await getDownloadURL(snapshot.ref);
+      }
+
+      // E. Save Final Report to Firestore
+      await addDoc(collection(db, "reports"), {
+        type: issueType,
+        location,
+        description,
+        image: imageUrl,
+        audio: uploadedAudioUrl,
+        tags: tagsToSend,
+        assignedDepartment: assignedDepartment,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error("Error submitting report:", err);
+      alert("Error submitting report. See console.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isSubmitted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+          <Upload className="w-8 h-8 text-green-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Submitted!</h2>
+        <p className="text-gray-600 mb-6 text-center">
+          Thank you. Your report has been sent to {displayTags ? "the relevant department" : "General Administration"}.
+        </p>
+        <Button onClick={() => window.location.reload()}>Submit Another Report</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header - Matches your blue screenshot */}
+      <div className="bg-[#0f4c75] p-4 text-white flex items-center gap-4 sticky top-0 z-10 shadow-md">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-[#3282b8] hover:text-white">
+          <ArrowLeft className="h-6 w-6" />
+        </Button>
+        <h1 className="text-xl font-bold">Report Issue</h1>
+      </div>
+
+      <div className="max-w-md mx-auto p-4 pb-20 space-y-6">
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* 1. Photo Evidence Card (Matches your layout) */}
+          <Card className="border shadow-sm bg-white">
+             <CardContent className="p-4 pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                   <Camera className="h-5 w-5 text-gray-700" />
+                   <h3 className="font-semibold text-gray-900">Photo Evidence</h3>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center">
+                  {previewUrl ? (
+                    <div className="relative w-full">
+                      <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover rounded-md" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
+                        onClick={removeFile}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg w-full py-8 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors" 
+                        onClick={() => document.getElementById("file-upload")?.click()}
+                    >
+                      <Upload className="h-10 w-10 text-gray-400 mb-3" />
+                      <p className="text-sm font-medium text-gray-600">No photo selected</p>
+                      <Button type="button" variant="outline" className="mt-4">
+                         Choose Photo
+                      </Button>
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        id="file-upload" 
+                        onChange={handleFileChange} 
+                      />
+                    </div>
+                  )}
+                </div>
+             </CardContent>
+          </Card>
+
+          {/* 2. Issue Type Card */}
+          <Card className="border shadow-sm bg-white">
+             <CardContent className="p-4 pt-6">
+                <div className="space-y-2">
+                    <Label className="text-base font-semibold text-gray-900">Issue Type</Label>
+                    <p className="text-xs text-gray-500">What type of problem are you reporting?</p>
+                    <Select value={issueType} onValueChange={setIssueType}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select issue type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {/* Specific options from your screenshot */}
+                        <SelectItem value="Broken Streetlight">Broken Streetlight</SelectItem>
+                        <SelectItem value="Electric Pole">Electric Pole</SelectItem>
+                        <SelectItem value="Water Leakage">Water Leakage</SelectItem>
+                        <SelectItem value="Stray Animals">Stray Animals</SelectItem>
+                        <SelectItem value="Pothole">Pothole</SelectItem>
+                        <SelectItem value="Graffiti">Graffiti</SelectItem>
+                        <SelectItem value="Illegal Dumping">Illegal Dumping</SelectItem>
+                        <SelectItem value="Damaged Sidewalk">Damaged Sidewalk</SelectItem>
+                        <SelectItem value="Traffic Signal Issue">Traffic Signal Issue</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                    </Select>
+                </div>
+             </CardContent>
+          </Card>
+
+          {/* 3. Location Card */}
+          <Card className="border shadow-sm bg-white">
+             <CardContent className="p-4 pt-6">
+                <div className="space-y-3">
+                    <Label className="text-base font-semibold text-gray-900">Location</Label>
+                    <p className="text-xs text-gray-500">Where is this issue located?</p>
+                    <Input
+                    placeholder="Enter address or coordinates"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="bg-gray-50"
+                    />
+                    <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full flex items-center justify-center gap-2 h-10 border-gray-300 text-gray-700 hover:bg-gray-100" 
+                    onClick={handleGetCurrentLocation}
+                    disabled={isLocating}
+                    >
+                    {isLocating ? <Loader2 className="h-4 w-4 animate-spin"/> : <MapPin className="h-4 w-4"/>}
+                    Use Current Location
+                    </Button>
+                </div>
+             </CardContent>
+          </Card>
+
+          {/* 4. Description Card */}
+          <Card className="border shadow-sm bg-white">
+             <CardContent className="p-4 pt-6">
+                <div className="space-y-3">
+                    <Label className="text-base font-semibold text-gray-900">Description</Label>
+                    <p className="text-xs text-gray-500">Provide details about the issue</p>
+                    <Textarea
+                    placeholder="Describe the issue in detail..."
+                    className="min-h-[120px] bg-gray-50 resize-none"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleGenerateTags} // Generates tags when user leaves field
+                    />
+                    
+                    {/* Tags Display */}
+                    {isGeneratingTags && (
+                        <p className="text-xs text-blue-500 flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin"/> Analyzing...
+                        </p>
+                    )}
+                    {displayTags && (
+                        <div className="p-2 bg-blue-50 rounded border border-blue-100 mt-2">
+                            <span className="text-xs font-bold text-blue-700 uppercase">Tags: </span>
+                            <span className="text-sm text-blue-900">{displayTags}</span>
+                        </div>
+                    )}
+
+                    {/* Audio Buttons */}
+                    <div className="pt-2 flex gap-3">
+                        {/* Placeholder for Voice Input (Dictation) */}
+                        <Button type="button" variant="outline" className="flex-1 gap-2" disabled>
+                            <Mic className="h-4 w-4"/> Voice Input
+                        </Button>
+
+                        {/* Actual Audio Recorder */}
+                        {!isRecording ? (
+                            <Button type="button" variant="outline" className="flex-1 gap-2" onClick={startRecording}>
+                                <Mic className="h-4 w-4"/> Record Audio
+                            </Button>
+                        ) : (
+                            <Button type="button" variant="destructive" className="flex-1 gap-2 animate-pulse" onClick={stopRecording}>
+                                <Square className="h-4 w-4"/> Stop ({recordingDuration}s)
+                            </Button>
+                        )}
+                    </div>
+                    {audioBlob && !isRecording && (
+                        <p className="text-xs text-green-600 text-center mt-1 font-medium">✓ Audio recording saved</p>
+                    )}
+                </div>
+             </CardContent>
+          </Card>
+
+          {/* Submit Button */}
+          <div className="pt-2">
+            <Button 
+                type="submit" 
+                className="w-full bg-[#0f4c75] hover:bg-[#3282b8] text-white h-12 text-lg font-medium shadow-md transition-all" 
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+                </>
+                ) : (
+                "Submit Report"
+                )}
+            </Button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
+}
