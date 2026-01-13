@@ -546,6 +546,7 @@ export default function ReportIssuePage() {
     const [issueType, setIssueType] = useState("")
     const [description, setDescription] = useState("")
     const [displayTags, setDisplayTags] = useState("")
+    const [debouncedDescription, setDebouncedDescription] = useState(description);
     const [isListening, setIsListening] = useState(false)
     const recognitionRef = useRef<any | null>(null)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
