@@ -651,94 +651,105 @@ export default function ReportIssuePage() {
         }
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        if (!issueType || !location || !description) {
-            alert("Please fill in all required fields.");
-            return;
+    if (!issueType || !location || !description) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      console.log("Submitting report...");
+
+      // --- STEP 1: SILENT DEPARTMENT ASSIGNMENT (Updated) ---
+      // Default to "General" if AI fails, so the user never gets stuck.
+      let assignedDepartment = "General Administration"; 
+
+      try {
+        // We send the Description + Issue Type to the AI for better accuracy
+        const departmentResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            description: description, 
+            category: issueType 
+          }),
+        });
+
+        if (departmentResponse.ok) {
+          const departmentData = await departmentResponse.json();
+          // The API returns { department: "..." }
+          if (departmentData.department) {
+            assignedDepartment = departmentData.department;
+            console.log("AI silently assigned to:", assignedDepartment);
+          }
         }
+      } catch (deptError) {
+        console.warn("Department assignment failed (using default):", deptError);
+        // We do NOT throw an error here. We let the submission continue 
+        // with "General Administration" so the user isn't blocked.
+      }
 
-        setIsSubmitting(true);
-
-        try {
-            console.log("Submitting report...");
-            
-            // Step 1: Use existing tags and get the assigned department
-            let assignedDepartment = "";
-            if (displayTags.trim() !== "") {
-                const departmentResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ tags: displayTags }), // Use the displayTags state
-                });
-
-                if (!departmentResponse.ok) {
-                    throw new Error(`Department assignment failed: ${departmentResponse.statusText}`);
-                }
-                const departmentData = await departmentResponse.json();
-                assignedDepartment = departmentData.assigned_department;
-            }
-
-            // Step 2: Handle file uploads to Vercel Blob
-            let imageUrl = "";
-            if (selectedFile) {
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Image upload failed: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-                const data = await response.json();
-                imageUrl = data.url;
-                console.log("Image uploaded to Vercel Blob:", imageUrl);
-            }
-
-            let uploadedAudioUrl = "";
-            if (audioBlob) {
-                const formData = new FormData();
-                formData.append('file', audioBlob, 'audio.webm');
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Audio upload failed: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-                const data = await response.json();
-                uploadedAudioUrl = data.url;
-                console.log("Audio uploaded to Vercel Blob:", uploadedAudioUrl);
-            }
-
-            // Step 3: Save all collected data to Firestore
-            await addDoc(collection(db, "reports"), {
-                type: issueType,
-                location,
-                description,
-                image: imageUrl,
-                audio: uploadedAudioUrl,
-                tags: displayTags, // Use the displayTags state for consistency
-                assignedDepartment: assignedDepartment, // Now guaranteed to be present
-                status: "pending",
-                createdAt: serverTimestamp(),
-            });
-
-            console.log("Report submitted successfully ✅");
-            setIsSubmitted(true);
-        } catch (err) {
-            console.error("Error submitting report:", err);
-            alert("Something went wrong while submitting your report. Check the console for details.");
-        } finally {
-            setIsSubmitting(false);
+      // --- STEP 2: IMAGE UPLOAD ---
+      let imageUrl = "";
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Image upload failed: ${response.statusText}`);
         }
-    };
+        const data = await response.json();
+        imageUrl = data.url;
+        console.log("Image uploaded:", imageUrl);
+      }
+
+      // --- STEP 3: AUDIO UPLOAD ---
+      let uploadedAudioUrl = "";
+      if (audioBlob) {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.webm');
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Audio upload failed: ${response.statusText}`);
+        }
+        const data = await response.json();
+        uploadedAudioUrl = data.url;
+        console.log("Audio uploaded:", uploadedAudioUrl);
+      }
+
+      // --- STEP 4: SAVE TO FIREBASE ---
+      await addDoc(collection(db, "reports"), {
+        type: issueType,
+        location,
+        description,
+        image: imageUrl,
+        audio: uploadedAudioUrl,
+        tags: displayTags, 
+        assignedDepartment: assignedDepartment, // <--- The AI result goes here
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+
+      console.log("Report submitted successfully ✅");
+      setIsSubmitted(true);
+
+    } catch (err) {
+      console.error("Error submitting report:", err);
+      alert("Something went wrong. Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
     const startVoiceInput = () => {
         if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
