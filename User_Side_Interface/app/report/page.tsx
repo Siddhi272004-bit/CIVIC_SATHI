@@ -1056,27 +1056,47 @@ export default function ReportIssuePage() {
       console.log("Submitting report...");
 
       // 1. Department Assignment (AI)
+      // ... inside handleSubmit ...
+
+      // 1. Department Assignment
       let assignedDepartment = "General Administration"; 
+      
       try {
+        // Fallback: If tags are empty, use the description so the AI still has something to work with
         const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
-        const deptResponse = await fetch(`/api/assign-department`, {
+        
+        // LOGS: If you don't see this in the browser console, the code isn't deployed yet!
+        console.log("🏢 STARTING Department Assignment...");
+        console.log("👉 Fetching URL: /api/assign-department");
+        console.log("📦 Sending Data:", JSON.stringify({ tags: tagsToSend }));
+
+        // CORRECT URL based on your file path
+        const deptResponse = await fetch('/api/assign-department', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({tags: tagsToSend }),
+          body: JSON.stringify({ tags: tagsToSend }),
         });
+
         if (deptResponse.ok) {
           const data = await deptResponse.json();
-            console.log("✅ Department Response:", data);
-          if (data.department) assignedDepartment = data.department;
+          console.log("✅ SUCCESS! Server replied:", data);
+          
+          if (data.department) {
+             assignedDepartment = data.department;
+             console.log("🎯 Set Department to:", assignedDepartment);
+          }
         } else {
-          // THIS IS WHAT WAS MISSING:
-          console.error("❌ Department Server Error:", deptResponse.status, deptResponse.statusText);
-          const errorText = await deptResponse.text();
-          console.error("Server Error Details:", errorText); 
+          // If the path is wrong, this will print 404
+          console.error("❌ ERROR: Server returned status:", deptResponse.status);
         }
+
       } catch (deptError) {
-        console.warn("Department assignment failed:", deptError);
+        console.error("💥 CRITICAL ERROR in Department Logic:", deptError);
       }
+      
+      console.log("🏁 Final Department for Firebase:", assignedDepartment);
+
+      // ... rest of the function (Image upload, etc.) ...
 
       // 2. IMAGE UPLOAD (To your /api/upload route)
       let imageUrl = "";
