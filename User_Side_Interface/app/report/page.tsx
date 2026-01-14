@@ -902,153 +902,146 @@
 // // }
 
 
-"use client";
+"use client"
 
-import { useState, useRef } from "react";
-import { ArrowLeft, Mic, Square, Upload, MapPin, Loader2, X, Camera } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useRouter } from "next/navigation";
+import type React from "react"
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Camera, MapPin, Upload, Mic, CheckCircle } from "lucide-react"
+import Link from "next/link"
+import { throttledFetch } from "@/lib/throttle"
 
-// --- FIREBASE IMPORTS ---
-import { db, storage } from "@/lib/firebaseconfig";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+// firebase imports
+import { db } from "@/lib/firebaseconfig"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 
-const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com"; 
+// Base URL for API (Used ONLY for tags and department assignment)
+const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com";
 
-export default function ReportIssue() {
-  const router = useRouter();
-  
-  // Form State
-  const [issueType, setIssueType] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
-  // AI & Status State
-  const [displayTags, setDisplayTags] = useState<string>("");
-  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
-  // Audio State
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+export default function ReportIssuePage() {
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [location, setLocation] = useState("")
+  const [issueType, setIssueType] = useState("")
+  const [description, setDescription] = useState("")
+  const [displayTags, setDisplayTags] = useState("")
+  const [isListening, setIsListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
 
-  // --- 1. LOCATION LOGIC ---
-  const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
-      return;
-    }
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        // Storing coordinates as string for now
-        const coords = `${position.coords.latitude}, ${position.coords.longitude}`;
-        setLocation(coords);
-        setIsLocating(false);
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        alert("Unable to retrieve your location.");
-        setIsLocating(false);
+  // --- Helper Functions (Debounce, etc.) ---
+  const debounce = (func: Function, delay: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  useEffect(() => {
+    const fetchTags = async (desc: string) => {
+      if (desc.trim() === "") {
+        setDisplayTags("");
+        return;
       }
-    );
-  };
-
-  // --- 2. AI TAG GENERATION ---
-  const handleGenerateTags = async () => {
-    if (!description || description.length < 3) return;
-    
-    setIsGeneratingTags(true);
-    try {
-      // 1. Generate Tags
-      const response = await fetch(`${API_BASE_URL}/api/generate-tags`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
-      });
-      const data = await response.json();
-      
-      if (data.generated_tags) {
-        setDisplayTags(data.generated_tags);
-        console.log("Generated Tags:", data.generated_tags);
+      try {
+        const tagsResponse = await throttledFetch(`${API_BASE_URL}/api/generate-tags`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: desc }),
+        });
+        if (!tagsResponse.ok) throw new Error("Tag gen failed");
+        const tagsData = await tagsResponse.json();
+        setDisplayTags(tagsData.generated_tags);
+      } catch (err) {
+        console.error("Error generating tags:", err);
       }
-    } catch (error) {
-      console.error("Error generating tags:", error);
-    } finally {
-      setIsGeneratingTags(false);
-    }
-  };
+    };
+    const debouncedFetchTags = debounce(fetchTags, 500);
+    debouncedFetchTags(description);
+  }, [description]);
 
-  // --- 3. FILE HANDLING ---
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
-  const removeFile = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-  };
-
-  // --- 4. AUDIO RECORDING ---
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: BlobPart[] = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      const chunks: BlobPart[] = []
+      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data) }
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" })
+        setAudioBlob(blob)
+        setAudioUrl(URL.createObjectURL(blob))
+      }
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (err) { console.error("Error accessing mic:", err) }
+  }
 
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        setAudioBlob(blob);
-      };
+  const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false) }
 
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-      
-      timerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error("Error accessing microphone:", err);
-      alert("Microphone access is required.");
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => setSelectedImage(e.target?.result as string)
+      reader.readAsDataURL(file)
     }
-  };
+  }
 
-  const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-      setRecordingDuration(0);
-      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setLocation(`${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`),
+        (e) => setLocation("Location access denied")
+      )
+    } else { setLocation("Geolocation not supported") }
+  }
+  
+  const startVoiceInput = () => {
+    if (typeof window !== "undefined") {
+      if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+        alert("Voice input is not supported.")
+        return
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false; recognition.interimResults = false; recognition.lang = "en-US"
+      recognition.onstart = () => setIsListening(true)
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript
+        setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
+        setIsListening(false)
+      }
+      recognition.onerror = () => setIsListening(false)
+      recognition.onend = () => setIsListening(false)
+      recognitionRef.current = recognition
+      recognition.start()
     }
-  };
+  }
 
-  // --- 5. SUBMISSION LOGIC ---
+  const stopVoiceInput = () => { recognitionRef.current?.stop(); setIsListening(false) }
+
+
+  // --- MAIN SUBMIT FUNCTION ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1060,70 +1053,84 @@ export default function ReportIssue() {
     setIsSubmitting(true);
 
     try {
-      // A. Determine Tags to Send
-      // If we haven't generated tags yet, try to use the description or a default
-      const tagsToSend = displayTags && displayTags.length > 0 
-        ? displayTags 
-        : `General Issue: ${description}`;
+      console.log("Submitting report...");
 
-      // B. AI Department Assignment
+      // 1. Department Assignment (AI)
       let assignedDepartment = "General Administration"; 
       try {
-        console.log("Asking AI to assign department using tags:", tagsToSend);
+        const tagsToSend = displayTags && displayTags.length > 0 ? displayTags : `General Issue: ${description}`;
         const deptResponse = await fetch(`${API_BASE_URL}/api/assign-department`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tags: tagsToSend // <--- CRITICAL FIX: Sending 'tags' key correctly
-          }),
+          body: JSON.stringify({ description, category: issueType, tags: tagsToSend }),
         });
-
         if (deptResponse.ok) {
-          const departmentData = await deptResponse.json();
-          if (departmentData.department) {
-            assignedDepartment = departmentData.department;
-            console.log("Assigned Department:", assignedDepartment);
-          }
-        } else {
-            console.warn("Department API returned error:", deptResponse.status);
+          const data = await deptResponse.json();
+          if (data.department) assignedDepartment = data.department;
         }
       } catch (deptError) {
-        console.warn("AI Department assignment failed, using default.");
+        console.warn("Department assignment failed:", deptError);
       }
 
-      // C. Upload Image to Firebase
+      // 2. IMAGE UPLOAD (To your /api/upload route)
       let imageUrl = "";
       if (selectedFile) {
-        const imageRef = ref(storage, `reports/images/${Date.now()}_${selectedFile.name}`);
-        const snapshot = await uploadBytes(imageRef, selectedFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
+        console.log("Uploading image...");
+        const formData = new FormData();
+        formData.append('file', selectedFile); 
+        
+        // Note: Using standard fetch to your Next.js API route
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error("Image upload failed");
+        
+        const data = await response.json();
+        imageUrl = data.url; // Vercel Blob returns the 'url' property
+        console.log("Image uploaded:", imageUrl);
       }
 
-      // D. Upload Audio to Firebase
+      // 3. AUDIO UPLOAD (To your /api/upload route)
       let uploadedAudioUrl = "";
       if (audioBlob) {
-        const audioRef = ref(storage, `reports/audio/${Date.now()}_voice_note.webm`);
-        const snapshot = await uploadBytes(audioRef, audioBlob);
-        uploadedAudioUrl = await getDownloadURL(snapshot.ref);
+        console.log("Uploading audio...");
+        const formData = new FormData();
+        // Give the file a name so the API can read it
+        formData.append('file', audioBlob, 'audio-note.webm'); 
+
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error("Audio upload failed");
+        
+        const data = await response.json();
+        uploadedAudioUrl = data.url;
+        console.log("Audio uploaded:", uploadedAudioUrl);
       }
 
-      // E. Save Final Report to Firestore
+      // 4. SAVE TO FIREBASE
       await addDoc(collection(db, "reports"), {
         type: issueType,
         location,
         description,
         image: imageUrl,
         audio: uploadedAudioUrl,
-        tags: tagsToSend,
+        tags: displayTags, 
         assignedDepartment: assignedDepartment,
         status: "pending",
         createdAt: serverTimestamp(),
       });
 
+      console.log("Report submitted successfully ✅");
       setIsSubmitted(true);
+
     } catch (err) {
       console.error("Error submitting report:", err);
-      alert("Error submitting report. See console.");
+      alert("Something went wrong. Please check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1131,203 +1138,194 @@ export default function ReportIssue() {
 
   if (isSubmitted) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <Upload className="w-8 h-8 text-green-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Submitted!</h2>
-        <p className="text-gray-600 mb-6 text-center">
-          Thank you. Your report has been sent to {displayTags ? "the relevant department" : "General Administration"}.
-        </p>
-        <Button onClick={() => window.location.reload()}>Submit Another Report</Button>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-green-50">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto mb-4 bg-green-100 p-3 rounded-full">
+              <CheckCircle className="h-12 w-12 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-green-800">Report Submitted!</CardTitle>
+            <CardDescription>
+              Thank you for being a Civic Sathi. Your report has been successfully recorded.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href="/">Back to Home</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Matches your blue screenshot */}
-      <div className="bg-[#0f4c75] p-4 text-white flex items-center gap-4 sticky top-0 z-10 shadow-md">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-[#3282b8] hover:text-white">
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <h1 className="text-xl font-bold">Report Issue</h1>
-      </div>
+    <div className="container mx-auto max-w-2xl p-4">
+      <Button variant="ghost" asChild className="mb-4 pl-0 hover:bg-transparent">
+        <Link href="/" className="flex items-center gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Link>
+      </Button>
 
-      <div className="max-w-md mx-auto p-4 pb-20 space-y-6">
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* 1. Photo Evidence Card (Matches your layout) */}
-          <Card className="border shadow-sm bg-white">
-             <CardContent className="p-4 pt-6">
-                <div className="flex items-center gap-2 mb-4">
-                   <Camera className="h-5 w-5 text-gray-700" />
-                   <h3 className="font-semibold text-gray-900">Photo Evidence</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Report an Issue</CardTitle>
+          <CardDescription>
+            Help us improve our city by reporting infrastructure or civic issues.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Issue Type */}
+            <div className="space-y-2">
+              <Label htmlFor="issue-type">Issue Type</Label>
+              <Select value={issueType} onValueChange={setIssueType}>
+                <SelectTrigger id="issue-type">
+                  <SelectValue placeholder="Select issue type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="road">Road Damage / Potholes</SelectItem>
+                  <SelectItem value="garbage">Garbage / Sanitation</SelectItem>
+                  <SelectItem value="water">Water Supply / Leakage</SelectItem>
+                  <SelectItem value="electricity">Street Lights / Electricity</SelectItem>
+                  <SelectItem value="traffic">Traffic / Parking</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Location */}
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="location" 
+                  placeholder="Enter location or use GPS" 
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={handleGetLocation}>
+                  <MapPin className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <div className="relative">
+                <Textarea 
+                  id="description" 
+                  placeholder="Describe the issue in detail..." 
+                  className="min-h-[100px] pr-10"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+                <div className="absolute right-2 bottom-2 flex gap-1">
+                   <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 ${isListening ? "text-red-500 animate-pulse" : "text-muted-foreground"}`}
+                    onClick={isListening ? stopVoiceInput : startVoiceInput}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
                 </div>
-                
-                <div className="flex flex-col items-center justify-center">
-                  {previewUrl ? (
-                    <div className="relative w-full">
-                      <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover rounded-md" />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
-                        onClick={removeFile}
-                      >
-                        <X className="h-4 w-4" />
+              </div>
+              {displayTags && (
+                <div className="text-sm text-muted-foreground mt-1">
+                   <span className="font-semibold">Detected Tags:</span> {displayTags}
+                </div>
+              )}
+            </div>
+
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <Label>Photo Evidence</Label>
+              <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-md p-6 hover:bg-muted/50 transition-colors">
+                {selectedImage ? (
+                  <div className="relative w-full">
+                    <img 
+                      src={selectedImage} 
+                      alt="Preview" 
+                      className="w-full max-h-[300px] object-contain rounded-md" 
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => {
+                        setSelectedImage(null)
+                        setSelectedFile(null)
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-2">
+                    <div className="flex justify-center gap-4">
+                      <Button type="button" variant="outline" onClick={() => document.getElementById('image-upload')?.click()}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload
+                      </Button>
+                      <Button type="button" variant="outline">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Camera
                       </Button>
                     </div>
-                  ) : (
-                    <div 
-                        className="border-2 border-dashed border-gray-300 rounded-lg w-full py-8 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors" 
-                        onClick={() => document.getElementById("file-upload")?.click()}
-                    >
-                      <Upload className="h-10 w-10 text-gray-400 mb-3" />
-                      <p className="text-sm font-medium text-gray-600">No photo selected</p>
-                      <Button type="button" variant="outline" className="mt-4">
-                         Choose Photo
-                      </Button>
-                      <Input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        id="file-upload" 
-                        onChange={handleFileChange} 
-                      />
+                    <Input 
+                      id="image-upload" 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleImageUpload}
+                    />
+                    <p className="text-xs text-muted-foreground">Supported formats: JPG, PNG</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Audio Recording */}
+            <div className="space-y-2">
+               <Label>Audio Note (Optional)</Label>
+               <div className="flex items-center gap-4">
+                  {!isRecording && !audioUrl && (
+                     <Button type="button" variant="outline" onClick={startRecording}>
+                       <Mic className="mr-2 h-4 w-4" /> Record Audio
+                     </Button>
+                  )}
+                  {isRecording && (
+                     <Button type="button" variant="destructive" onClick={stopRecording}>
+                       Stop Recording
+                     </Button>
+                  )}
+                  {audioUrl && (
+                    <div className="flex items-center gap-2 w-full">
+                       <audio src={audioUrl} controls className="w-full h-10" />
+                       <Button type="button" variant="ghost" size="icon" onClick={() => {
+                          setAudioUrl(null)
+                          setAudioBlob(null)
+                       }}>
+                         X
+                       </Button>
                     </div>
                   )}
-                </div>
-             </CardContent>
-          </Card>
+               </div>
+            </div>
 
-          {/* 2. Issue Type Card */}
-          <Card className="border shadow-sm bg-white">
-             <CardContent className="p-4 pt-6">
-                <div className="space-y-2">
-                    <Label className="text-base font-semibold text-gray-900">Issue Type</Label>
-                    <p className="text-xs text-gray-500">What type of problem are you reporting?</p>
-                    <Select value={issueType} onValueChange={setIssueType}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select issue type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {/* Specific options from your screenshot */}
-                        <SelectItem value="Broken Streetlight">Broken Streetlight</SelectItem>
-                        <SelectItem value="Electric Pole">Electric Pole</SelectItem>
-                        <SelectItem value="Water Leakage">Water Leakage</SelectItem>
-                        <SelectItem value="Stray Animals">Stray Animals</SelectItem>
-                        <SelectItem value="Pothole">Pothole</SelectItem>
-                        <SelectItem value="Graffiti">Graffiti</SelectItem>
-                        <SelectItem value="Illegal Dumping">Illegal Dumping</SelectItem>
-                        <SelectItem value="Damaged Sidewalk">Damaged Sidewalk</SelectItem>
-                        <SelectItem value="Traffic Signal Issue">Traffic Signal Issue</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                    </Select>
-                </div>
-             </CardContent>
-          </Card>
-
-          {/* 3. Location Card */}
-          <Card className="border shadow-sm bg-white">
-             <CardContent className="p-4 pt-6">
-                <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-900">Location</Label>
-                    <p className="text-xs text-gray-500">Where is this issue located?</p>
-                    <Input
-                    placeholder="Enter address or coordinates"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="bg-gray-50"
-                    />
-                    <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full flex items-center justify-center gap-2 h-10 border-gray-300 text-gray-700 hover:bg-gray-100" 
-                    onClick={handleGetCurrentLocation}
-                    disabled={isLocating}
-                    >
-                    {isLocating ? <Loader2 className="h-4 w-4 animate-spin"/> : <MapPin className="h-4 w-4"/>}
-                    Use Current Location
-                    </Button>
-                </div>
-             </CardContent>
-          </Card>
-
-          {/* 4. Description Card */}
-          <Card className="border shadow-sm bg-white">
-             <CardContent className="p-4 pt-6">
-                <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-900">Description</Label>
-                    <p className="text-xs text-gray-500">Provide details about the issue</p>
-                    <Textarea
-                    placeholder="Describe the issue in detail..."
-                    className="min-h-[120px] bg-gray-50 resize-none"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    onBlur={handleGenerateTags} // Generates tags when user leaves field
-                    />
-                    
-                    {/* Tags Display */}
-                    {isGeneratingTags && (
-                        <p className="text-xs text-blue-500 flex items-center gap-1">
-                            <Loader2 className="h-3 w-3 animate-spin"/> Analyzing...
-                        </p>
-                    )}
-                    {displayTags && (
-                        <div className="p-2 bg-blue-50 rounded border border-blue-100 mt-2">
-                            <span className="text-xs font-bold text-blue-700 uppercase">Tags: </span>
-                            <span className="text-sm text-blue-900">{displayTags}</span>
-                        </div>
-                    )}
-
-                    {/* Audio Buttons */}
-                    <div className="pt-2 flex gap-3">
-                        {/* Placeholder for Voice Input (Dictation) */}
-                        <Button type="button" variant="outline" className="flex-1 gap-2" disabled>
-                            <Mic className="h-4 w-4"/> Voice Input
-                        </Button>
-
-                        {/* Actual Audio Recorder */}
-                        {!isRecording ? (
-                            <Button type="button" variant="outline" className="flex-1 gap-2" onClick={startRecording}>
-                                <Mic className="h-4 w-4"/> Record Audio
-                            </Button>
-                        ) : (
-                            <Button type="button" variant="destructive" className="flex-1 gap-2 animate-pulse" onClick={stopRecording}>
-                                <Square className="h-4 w-4"/> Stop ({recordingDuration}s)
-                            </Button>
-                        )}
-                    </div>
-                    {audioBlob && !isRecording && (
-                        <p className="text-xs text-green-600 text-center mt-1 font-medium">✓ Audio recording saved</p>
-                    )}
-                </div>
-             </CardContent>
-          </Card>
-
-          {/* Submit Button */}
-          <div className="pt-2">
-            <Button 
-                type="submit" 
-                className="w-full bg-[#0f4c75] hover:bg-[#3282b8] text-white h-12 text-lg font-medium shadow-md transition-all" 
-                disabled={isSubmitting}
-            >
-                {isSubmitting ? (
-                <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-                </>
-                ) : (
-                "Submit Report"
-                )}
+            {/* Submit Button */}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Report"}
             </Button>
-          </div>
-
-        </form>
-      </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
