@@ -56,6 +56,7 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
+import { StatusNotification } from "@/components/StatusNotification";
 import './globals.css'
 
 // 1. Import the AuthProvider we just created
@@ -66,7 +67,20 @@ export const metadata: Metadata = {
   description: 'Community Issue Reporting App',
   generator: 'v0.app',
 }
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <AuthProvider>
+           <StatusNotification />  {/* <--- Add this component here */}
+           {children}
+           <Toaster />
+        </AuthProvider>
+      </body>
+    </html>
+  );
+      
+}
 export default function RootLayout({
   children,
 }: Readonly<{
