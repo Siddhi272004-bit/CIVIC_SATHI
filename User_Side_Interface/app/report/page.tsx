@@ -923,7 +923,7 @@ import { db } from "@/lib/firebaseconfig"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 
 // Base URL for API (Used ONLY for tags and department assignment)
-const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com";
+// const API_BASE_URL = "https://civic-sathi-vi5b.onrender.com";
 
 declare global {
   interface Window {
@@ -967,7 +967,7 @@ export default function ReportIssuePage() {
         return;
       }
       try {
-        const tagsResponse = await throttledFetch(`${API_BASE_URL}/api/generate-tags`, {
+        const tagsResponse = await throttledFetch(`/api/generate-tags`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description: desc }),
