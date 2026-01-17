@@ -13,7 +13,7 @@ import { ArrowLeft, Camera, MapPin, Upload, Mic, CheckCircle } from "lucide-reac
 import Link from "next/link"
 import { throttledFetch } from "@/lib/throttle"
 import { useAuth } from "@/lib/AuthContext";
-
+import { updateUserGamification } from '@/app/actions/gamification';
 
 import { db } from "@/lib/firebaseconfig"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
@@ -29,6 +29,7 @@ declare global {
 export default function ReportIssuePage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [earnedRewards, setEarnedRewards] = useState<{ level: number; rank: string } | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -242,6 +243,20 @@ export default function ReportIssuePage() {
         userId: user.uid,
         userEmail: user.email
       });
+      if (user?.uid) {
+          try {
+              const rewards = await updateUserGamification(user.uid);
+              if (rewards) {
+                  setEarnedRewards({
+                      level: rewards.newLevel,
+                      rank: rewards.newTitle
+                  });
+              }
+          } catch (gameError) {
+              console.error("Gamification Error:", gameError);
+              // Don't block submission if this fails
+          }
+      }
 
       console.log("Report submitted successfully ");
       setIsSubmitted(true);
@@ -267,10 +282,37 @@ export default function ReportIssuePage() {
               Thank you for being a Civic Sathi. Your report has been successfully recorded.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <Link href="/">Back to Home</Link>
-            </Button>
+          <CardContent className="space-y-4">
+            {/* 🏆 GAMIFICATION REWARD CARD */}
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-100 p-4 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
+                        <Coins size={24} />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Reward Earned</p>
+                        <p className="text-lg font-bold text-gray-800">+50 Coins</p>
+                    </div>
+                </div>
+                {earnedRewards && (
+                     <div className="text-right">
+                        <p className="text-xs text-gray-500">Current Rank</p>
+                        <div className="flex items-center gap-1 justify-end text-purple-600 font-bold">
+                            <Trophy size={14} />
+                            <span>{earnedRewards.rank}</span>
+                        </div>
+                     </div>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <Button asChild className="w-full bg-[#00648e] hover:bg-[#004d6e]">
+                  <Link href="/dashboard">View Dashboard & Rewards</Link>
+                </Button>
+                <Button variant="ghost" asChild className="w-full">
+                  <Link href="/">Back to Home</Link>
+                </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
