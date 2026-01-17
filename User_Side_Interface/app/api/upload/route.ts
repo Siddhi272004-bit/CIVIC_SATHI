@@ -162,19 +162,19 @@ export async function POST(request: Request): Promise<NextResponse> {
         const arrayBuffer = await fileObj.arrayBuffer();
         const inputBuffer = Buffer.from(arrayBuffer);
 
-        // 2. Read the Font File (Roboto-Regular.ttf)
-        // We look in: YourProject/public/Roboto-Regular.ttf
-        const fontPath = path.join(process.cwd(), 'public', 'Roboto-Regular.ttf');
+        // 2. Read the Font File
+        // 👇 UPDATED: Pointing to public/fonts/Roboto-Regular.ttf
+        const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Regular.ttf');
         let fontBase64 = '';
         let fontStyleCSS = '';
 
         try {
-            console.log(`[FONT] Looking for font at: ${fontPath}`);
+            console.log(`[FONT] Attempting to load font from: ${fontPath}`);
             const fontBuffer = await fs.readFile(fontPath);
             fontBase64 = fontBuffer.toString('base64');
-            console.log(`[FONT] Font loaded successfully!`);
+            console.log(`[FONT] ✅ Font loaded successfully!`);
             
-            // If font is found, use it
+            // CSS to embed the font
             fontStyleCSS = `
                 @font-face {
                     font-family: 'MyCustomFont';
@@ -183,8 +183,10 @@ export async function POST(request: Request): Promise<NextResponse> {
                 .text { font-family: 'MyCustomFont', sans-serif; }
             `;
         } catch (fontErr) {
-            console.error("[FONT] ERROR: Could not load font file. Using fallback.", fontErr);
-            // Fallback to system sans-serif if font file is missing
+            console.error("[FONT] ❌ ERROR: Could not load font file.", fontErr);
+            console.error("Make sure 'Roboto-Regular.ttf' is inside 'public/fonts/' folder.");
+            
+            // Fallback: This usually results in "tofu" squares on servers without fonts
             fontStyleCSS = `.text { font-family: sans-serif; }`; 
         }
 
@@ -193,37 +195,37 @@ export async function POST(request: Request): Promise<NextResponse> {
         const width = metadata.width || 800;
         const resizeWidth = width > 1000 ? 1000 : width;
 
-        // 4. Generate Timestamp (Date & Time)
+        // 4. Generate Timestamp
         const timestamp = new Date().toLocaleString('en-IN', { 
             timeZone: 'Asia/Kolkata',
-            dateStyle: 'medium', // e.g., Jan 17, 2026
-            timeStyle: 'short'   // e.g., 2:30 PM
+            dateStyle: 'medium',
+            timeStyle: 'short'
         });
 
-        // 5. Create SVG with TWO LINES (GPS + DATE)
+        // 5. Create SVG Overlay
         const line1 = `GPS: ${location}`;
         const line2 = `DATE: ${timestamp}`;
         
+        // Note: Added 'dominant-baseline' and 'text-anchor' for better centering if needed
         const svgOverlay = `
-        <svg width="${resizeWidth}" height="70">
+        <svg width="${resizeWidth}" height="80">
             <defs>
                 <style>
                     ${fontStyleCSS}
-                    .bg { fill: rgba(0, 0, 0, 0.7); }
+                    .bg { fill: rgba(0, 0, 0, 0.6); }
                     .text { fill: #fff; font-weight: bold; }
-                    .gps { font-size: 20px; }
-                    .date { font-size: 15px; fill: #ddd; }
+                    .gps { font-size: 24px; }
+                    .date { font-size: 16px; fill: #ddd; }
                 </style>
             </defs>
-            <rect x="0" y="0" width="${resizeWidth}" height="70" class="bg" />
+            <rect x="0" y="0" width="${resizeWidth}" height="80" class="bg" />
             
-            <text x="15" y="30" class="text gps">${line1}</text>
-            
-            <text x="15" y="55" class="text date">${line2}</text>
+            <text x="20" y="35" class="text gps">${line1}</text>
+            <text x="20" y="65" class="text date">${line2}</text>
         </svg>
         `;
 
-        // 6. Process Image
+        // 6. Process Image (Composite)
         const processedImageBuffer = await sharp(inputBuffer)
             .resize({ width: resizeWidth })
             .composite([
