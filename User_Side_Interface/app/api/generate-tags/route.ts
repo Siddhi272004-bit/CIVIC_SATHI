@@ -70,7 +70,8 @@ export async function POST(request: Request) {
     // The Frontend expects the key "generated_tags".
     // If your teammate's Python code returns "tags", we map it here safely:
     const finalTags = data.tag;
-
+    const conf=data.confidence;
+    console.log(conf);
     return NextResponse.json({ generated_tags: finalTags });
 
   } catch (error) {
