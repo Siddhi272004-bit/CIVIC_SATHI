@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
     console.log(`[PROXY] Forwarding description to Python...`);
 
-    const pythonResponse = await fetch(`${PYTHON_API_URL}/api/generate-tags`, {
+    const pythonResponse = await fetch(`${PYTHON_API_URL}/api/analyze-issue`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ description }), 
