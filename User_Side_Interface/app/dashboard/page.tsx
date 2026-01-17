@@ -254,7 +254,7 @@ import {
 import Link from 'next/link';
 import { useAuth } from "@/lib/AuthContext"; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; 
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebaseconfig';
 import { doc, getDoc } from 'firebase/firestore';
 
 // Define the interface to match Firestore data
