@@ -1132,8 +1132,8 @@ export default function ReportIssuePage() {
                console.log("✅ Server replied:", data);
                
                // Handle response (whether it's an object or a direct string)
-               if (data.department) {
-                   assignedDepartment = data.department;
+               if (data.suggested_department) {
+                   assignedDepartment = data.suggested_department;
                } else if (typeof data === 'string') {
                    assignedDepartment = data;
                }
